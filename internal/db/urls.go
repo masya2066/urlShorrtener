@@ -3,7 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"shortener/pkg/generator"
+	"shortener/internal/pkg/generator"
 )
 
 func GetUrl(id string) (string, error) {
