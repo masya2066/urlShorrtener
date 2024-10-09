@@ -26,7 +26,7 @@ func main() {
 		os.Setenv("SERVER_ADDRESS", cfg.ServerAddress)
 	}
 	if os.Getenv("BASE_URL") == "" {
-		os.Setenv("BASE_URL", cfg.BaseUrl)
+		os.Setenv("BASE_URL", cfg.BaseURL)
 	}
 
 	aFlag := flag.String("a", "", "Value for the -a flag")
