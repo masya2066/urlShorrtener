@@ -11,10 +11,10 @@ import (
 func TestShortner(t *testing.T) {
 	r := gin.Default()
 
-	r.POST("/test-shorten", Shortner)
+	r.POST("/", Shortner)
 
 	requestBody := []byte("https://www.example.com")
-	req, err := http.NewRequest("POST", "/test-shorten", bytes.NewBuffer(requestBody))
+	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(requestBody))
 	if err != nil {
 		t.Fatal(err)
 	}

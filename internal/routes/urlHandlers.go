@@ -31,7 +31,7 @@ func Shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	result, err := db.CreateUrl(strBody)
+	result, err := db.CreateURL(strBody)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -62,7 +62,7 @@ func GetURL(c *gin.Context) {
 
 	id := c.Request.URL.Path[1:]
 
-	result, err := db.GetUrl(id)
+	result, err := db.GetURL(id)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
 		_, err := c.Writer.Write([]byte(err.Error()))

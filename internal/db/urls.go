@@ -6,26 +6,26 @@ import (
 	"shortener/internal/pkg/generator"
 )
 
-func GetUrl(id string) (string, error) {
+func GetURL(id string) (string, error) {
 	db, err := sql.Open("sqlite3", "./urlShortener.db")
 	if err != nil {
 		return "", err
 	}
 	defer db.Close()
 
-	var longUrl string
+	var longURL string
 
-	err = db.QueryRow("SELECT longUrl FROM urlList WHERE url_id = ?", id).Scan(&longUrl)
+	err = db.QueryRow("SELECT longURL FROM urlList WHERE url_id = ?", id).Scan(&longURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", fmt.Errorf("no URL found with id: %s", id)
 		}
 		return "", err
 	}
-	return longUrl, nil
+	return longURL, nil
 }
 
-func CreateUrl(url string) (string, error) {
+func CreateURL(url string) (string, error) {
 	db, err := sql.Open("sqlite3", "./urlShortener.db")
 	if err != nil {
 		return "", err
@@ -35,11 +35,10 @@ func CreateUrl(url string) (string, error) {
 
 	code := generator.GenerateRandomCode(12)
 
-	res, err := db.Exec("INSERT INTO urlList (url_id, longUrl) VALUES (?, ?)", code, url)
+	_, err = db.Exec("INSERT INTO urlList (url_id, longURL) VALUES (?, ?)", code, url)
 	if err != nil {
 		return "", err
 	}
 
-	fmt.Println(res)
 	return code, nil
 }

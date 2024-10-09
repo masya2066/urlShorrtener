@@ -21,14 +21,14 @@ func Init() error {
 }
 
 func migrate(db *sql.DB) error {
-	createUrlListTable := `CREATE TABLE IF NOT EXISTS urlList
+	createURLListTable := `CREATE TABLE IF NOT EXISTS urlList
 	(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		url_id TEXT NOT NULL,
-		longUrl TEXT NOT NULL
+		longURL TEXT NOT NULL
 	);`
 
-	_, err := db.Exec(createUrlListTable)
+	_, err := db.Exec(createURLListTable)
 	if err != nil {
 		return err
 	}
