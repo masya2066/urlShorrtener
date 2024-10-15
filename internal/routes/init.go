@@ -9,8 +9,8 @@ func Init() error {
 
 	r := gin.Default()
 
-	r.GET("/:id", GetURL)
-	r.POST("/", Shortner)
+	r.GET("/:id", getURL)
+	r.POST("/", shortner)
 
 	err := r.Run(os.Getenv("SERVER_ADDRESS"))
 	if err != nil {
