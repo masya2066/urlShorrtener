@@ -12,7 +12,7 @@ type CreateBody struct {
 	string
 }
 
-func Shortner(c *gin.Context) {
+func shortner(c *gin.Context) {
 	if c.Request.Method != http.MethodPost {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := c.Writer.Write([]byte("Method must be a POST request"))
@@ -50,7 +50,7 @@ func Shortner(c *gin.Context) {
 	}
 }
 
-func GetURL(c *gin.Context) {
+func getURL(c *gin.Context) {
 	if c.Request.Method != http.MethodGet {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := c.Writer.Write([]byte("Method must be a GET request"))

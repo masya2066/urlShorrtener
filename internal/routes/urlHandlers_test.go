@@ -11,7 +11,7 @@ import (
 func TestShortner(t *testing.T) {
 	r := gin.Default()
 
-	r.POST("/", Shortner)
+	r.POST("/", shortner)
 
 	requestBody := []byte("https://www.example.com")
 	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(requestBody))
@@ -32,7 +32,7 @@ func TestShortner(t *testing.T) {
 func TestGetURL(t *testing.T) {
 	r := gin.Default()
 
-	r.GET("/:id", GetURL)
+	r.GET("/:id", getURL)
 
 	req, err := http.NewRequest("GET", "/123", nil)
 	if err != nil {
