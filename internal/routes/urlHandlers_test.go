@@ -2,10 +2,11 @@ package routes
 
 import (
 	"bytes"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestShortner(t *testing.T) {
