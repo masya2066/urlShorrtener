@@ -1,18 +1,22 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
+	"net/http"
 	"os"
 )
 
 func Init() error {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			Shortner(w, r)
+		} else if r.Method == http.MethodGet && r.URL.Path != "/" {
+			GetURL(w, r)
+		} else {
+			http.NotFound(w, r)
+		}
+	})
 
-	r := gin.Default()
-
-	r.GET("/:id", GetURL)
-	r.POST("/", Shortner)
-
-	err := r.Run(os.Getenv("SERVER_ADDRESS"))
+	err := http.ListenAndServe(os.Getenv("SERVER_ADDRESS"), nil)
 	if err != nil {
 		return err
 	}

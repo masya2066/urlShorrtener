@@ -1,86 +1,58 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"os"
 	"shortener/internal/db"
 )
 
-type CreateBody struct {
-	string
-}
-
-func Shortner(c *gin.Context) {
-	if c.Request.Method != http.MethodPost {
-		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
-		_, err := c.Writer.Write([]byte("Method must be a POST request"))
-		if err != nil {
-			c.Writer.WriteHeader(http.StatusInternalServerError)
-		}
+func Shortner(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method must be a POST request", http.StatusMethodNotAllowed)
 		return
 	}
 
-	body, err := io.ReadAll(c.Request.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		c.Writer.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
+	defer r.Body.Close()
 
-	defer c.Request.Body.Close()
 	strBody := string(body)
-
 	result, err := db.CreateURL(strBody)
 	if err != nil {
-		c.Writer.WriteHeader(http.StatusInternalServerError)
-		_, err := c.Writer.Write([]byte(err.Error()))
-		if err != nil {
-			c.Writer.WriteHeader(http.StatusInternalServerError)
-		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.Writer.WriteHeader(http.StatusCreated)
-	c.Header("Content-Type", "text/plain")
-	_, errWrite := c.Writer.Write([]byte(os.Getenv("BASE_URL") + "/" + result))
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusCreated)
+	_, errWrite := w.Write([]byte(os.Getenv("BASE_URL") + "/" + result))
 	if errWrite != nil {
-		c.Writer.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
 		return
 	}
 }
 
-func GetURL(c *gin.Context) {
-	if c.Request.Method != http.MethodGet {
-		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
-		_, err := c.Writer.Write([]byte("Method must be a GET request"))
-		if err != nil {
-			c.Writer.WriteHeader(http.StatusTemporaryRedirect)
-		}
+func GetURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method must be a GET request", http.StatusMethodNotAllowed)
 		return
 	}
 
-	id := c.Request.URL.Path[1:]
-
+	id := r.URL.Path[1:]
 	result, err := db.GetURL(id)
 	if err != nil {
-		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
-		_, err := c.Writer.Write([]byte(err.Error()))
-		if err != nil {
-			c.Writer.WriteHeader(http.StatusTemporaryRedirect)
-		}
+		http.Error(w, err.Error(), http.StatusTemporaryRedirect)
 		return
 	}
 
 	if result == "" {
-		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
-		_, err := c.Writer.Write([]byte("URL not found"))
-		if err != nil {
-			c.Writer.WriteHeader(http.StatusTemporaryRedirect)
-		}
+		http.Error(w, "URL not found", http.StatusTemporaryRedirect)
 		return
 	}
 
-	c.Header("Location", result)
-	c.Redirect(http.StatusTemporaryRedirect, result)
+	http.Redirect(w, r, result, http.StatusTemporaryRedirect)
 }
