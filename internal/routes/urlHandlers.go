@@ -30,12 +30,7 @@ func shortner(c *gin.Context) {
 		return
 	}
 
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(c.Request.Body)
+	defer c.Request.Body.Close()
 	strBody := string(body)
 
 	result, err := db.CreateURL(strBody)
