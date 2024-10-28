@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"shortener/internal/db"
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 )
 
 type CreateBody struct {
@@ -83,4 +85,38 @@ func getURL(c *gin.Context) {
 
 	c.Header("Location", result)
 	c.Redirect(http.StatusTemporaryRedirect, result)
+}
+
+func shorten(c *gin.Context) {
+	var body request.Shortener
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.Writer.WriteHeader(http.StatusBadRequest)
+		_, err := c.Writer.Write([]byte(err.Error()))
+		if err != nil {
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	if body.URL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "URL is required",
+		})
+		return
+	}
+
+	result, err := db.CreateURL(body.URL)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		_, err := c.Writer.Write([]byte(err.Error()))
+		if err != nil {
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Shortener{
+		Result: os.Getenv("BASE_URL") + "/" + result,
+	})
 }

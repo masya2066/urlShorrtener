@@ -12,6 +12,10 @@ func Init() error {
 
 	r.GET("/:id", middleware.Logger, getURL)
 	r.POST("/", middleware.Logger, shortner)
+	api := r.Group("/api")
+	{
+		api.POST("/shorten", middleware.Logger, shorten)
+	}
 
 	err := r.Run(os.Getenv("SERVER_ADDRESS"))
 	if err != nil {
