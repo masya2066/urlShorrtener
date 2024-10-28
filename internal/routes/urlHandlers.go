@@ -30,7 +30,12 @@ func shortner(c *gin.Context) {
 		return
 	}
 
-	defer c.Request.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(c.Request.Body)
 	strBody := string(body)
 
 	result, err := db.CreateURL(strBody)
@@ -116,7 +121,7 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.Shortener{
+	c.JSON(http.StatusCreated, response.Shortener{
 		Result: os.Getenv("BASE_URL") + "/" + result,
 	})
 }

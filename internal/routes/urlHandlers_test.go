@@ -72,7 +72,7 @@ func TestShorten(t *testing.T) {
 
 	r.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
+	if rr.Code != http.StatusCreated {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			rr.Code, http.StatusOK)
 	}
