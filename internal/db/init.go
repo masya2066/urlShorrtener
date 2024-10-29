@@ -12,7 +12,7 @@ import (
 type Item struct {
 	ID      string `json:"id"`
 	URL     string `json:"url"`
-	LongUrl string `json:"long_url"`
+	LongURL string `json:"long_url"`
 }
 
 var mu sync.Mutex

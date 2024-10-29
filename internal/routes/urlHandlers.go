@@ -36,7 +36,7 @@ func shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	result, err := db.AppendUrl(strBody)
+	result, err := db.AppendURL(strBody)
 	if err != nil {
 		fmt.Println(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
@@ -112,7 +112,7 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	result, err := db.AppendUrl(body.URL)
+	result, err := db.AppendURL(body.URL)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))

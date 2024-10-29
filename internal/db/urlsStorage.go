@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func AppendUrl(url string) (code string, errCreate error) {
+func AppendURL(url string) (code string, errCreate error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -25,7 +25,7 @@ func AppendUrl(url string) (code string, errCreate error) {
 	}
 	nextID := strconv.Itoa(maxID + 1)
 
-	newItem := Item{ID: nextID, URL: codeGen, LongUrl: url}
+	newItem := Item{ID: nextID, URL: codeGen, LongURL: url}
 	items = append(items, newItem)
 
 	err = writeItemsToFile(items)
@@ -43,6 +43,6 @@ func GetURLByCode(code string) (string, error) {
 		return "", err
 	}
 
-	longURL = items.LongUrl
+	longURL = items.LongURL
 	return longURL, nil
 }
