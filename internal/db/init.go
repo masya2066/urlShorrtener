@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -17,8 +17,6 @@ type Item struct {
 }
 
 var mu sync.Mutex
-
-const filePath = "/urlList.json"
 
 func Init() error {
 	db, err := sql.Open("sqlite3", "./urlShortener.db")
@@ -41,17 +39,17 @@ func InitStorage() error {
 
 	path := os.Getenv("FILE_STORAGE_PATH")
 	if path == "" {
-		path = "storage"
+		path = "tmp/JADAF\n"
 	}
 
-	fmt.Println(path + filePath)
-	if _, err := os.Stat(path + filePath); errors.Is(err, os.ErrNotExist) {
-		if err := os.MkdirAll(path, os.ModePerm); err != nil {
-			return err
-		}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return err
+	}
 
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		emptyData := []Item{}
-		file, err := os.Create(path + filePath)
+		file, err := os.Create(path)
 		if err != nil {
 			return err
 		}
@@ -60,6 +58,7 @@ func InitStorage() error {
 		encoder := json.NewEncoder(file)
 		return encoder.Encode(emptyData)
 	}
+
 	return nil
 }
 
@@ -129,11 +128,10 @@ func GetItemByShortCode(code string) (*Item, error) {
 func getAllItems() ([]Item, error) {
 	path := os.Getenv("FILE_STORAGE_PATH")
 	if path == "" {
-		path = "storage"
+		path = "tmp/JADAF\n"
 	}
 
-	fmt.Println(path + filePath)
-	file, err := os.ReadFile(path + filePath)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -149,11 +147,10 @@ func getAllItems() ([]Item, error) {
 func writeItemsToFile(items []Item) error {
 	path := os.Getenv("FILE_STORAGE_PATH")
 	if path == "" {
-		path = "storage"
+		path = "tmp/JADAF\n"
 	}
 
-	fmt.Println(path + filePath)
-	file, err := os.Create(path + filePath)
+	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}

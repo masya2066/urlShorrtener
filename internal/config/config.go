@@ -16,7 +16,7 @@ func LoadConfig(filename string) (models.Config, error) {
 		config = models.Config{
 			ServerAddress:   "localhost:8080",
 			BaseURL:         "http://localhost:8080",
-			FileStoragePath: "storage",
+			FileStoragePath: "tmp/JADAF",
 		}
 
 		configBytes, err := json.MarshalIndent(config, "", "  ")
