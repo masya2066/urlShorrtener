@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"github.com/gin-gonic/gin"
 	"io"
+	"net/http"
 	"strings"
 )
 
@@ -13,25 +14,32 @@ type gzipResponseWriter struct {
 }
 
 func Compress(c *gin.Context) {
-	if !strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
-		c.Next()
-		return
+	if c.GetHeader("Content-Encoding") == "gzip" {
+		gz, err := gzip.NewReader(c.Request.Body)
+		if err != nil {
+			c.String(http.StatusBadRequest, "Failed to decompress request body")
+			return
+		}
+		defer gz.Close()
+		c.Request.Body = io.NopCloser(gz)
 	}
 
-	c.Header("Content-Encoding", "gzip")
-	c.Header("Vary", "Accept-Encoding")
+	if strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
+		c.Header("Content-Encoding", "gzip")
+		c.Header("Vary", "Accept-Encoding")
 
-	gz := gzip.NewWriter(c.Writer)
-	defer gz.Close()
+		gz := gzip.NewWriter(c.Writer)
+		defer gz.Close()
 
-	c.Writer = &gzipResponseWriter{
-		ResponseWriter: c.Writer,
-		Writer:         gz,
+		c.Writer = &gzipResponseWriter{
+			ResponseWriter: c.Writer,
+			Writer:         gz,
+		}
 	}
 
 	c.Next()
 }
 
 func (w *gzipResponseWriter) Write(data []byte) (int, error) {
-	return w.Writer.Write(data)
+	return w.Writer.Write(data) // Write gzipped data to response
 }
