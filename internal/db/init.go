@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
 	"sync"
@@ -43,13 +44,14 @@ func InitStorage() error {
 		path = "storage"
 	}
 
+	fmt.Println(path + filePath)
 	if _, err := os.Stat(path + filePath); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(path, os.ModePerm); err != nil {
 			return err
 		}
 
 		emptyData := []Item{}
-		file, err := os.Create(os.Getenv("FILE_STORAGE_PATH") + filePath)
+		file, err := os.Create(path + filePath)
 		if err != nil {
 			return err
 		}
@@ -129,6 +131,8 @@ func getAllItems() ([]Item, error) {
 	if path == "" {
 		path = "storage"
 	}
+
+	fmt.Println(path + filePath)
 	file, err := os.ReadFile(path + filePath)
 	if err != nil {
 		return nil, err
@@ -147,6 +151,8 @@ func writeItemsToFile(items []Item) error {
 	if path == "" {
 		path = "storage"
 	}
+
+	fmt.Println(path + filePath)
 	file, err := os.Create(path + filePath)
 	if err != nil {
 		return err
