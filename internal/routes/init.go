@@ -9,6 +9,7 @@ import (
 func Init() error {
 
 	r := gin.Default()
+	r.Use(middleware.Logger, middleware.Compress)
 
 	r.GET("/:id", middleware.Logger, getURL)
 	r.POST("/", middleware.Logger, shortner)
