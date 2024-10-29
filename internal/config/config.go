@@ -14,8 +14,9 @@ func LoadConfig(filename string) (models.Config, error) {
 		fmt.Println("Config file does not exist. Creating a new one...")
 
 		config = models.Config{
-			ServerAddress: "localhost:8080",
-			BaseURL:       "http://localhost:8080",
+			ServerAddress:   "localhost:8080",
+			BaseURL:         "http://localhost:8080",
+			FileStoragePath: "storage",
 		}
 
 		configBytes, err := json.MarshalIndent(config, "", "  ")

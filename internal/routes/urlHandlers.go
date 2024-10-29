@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ func shortner(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := c.Writer.Write([]byte("Method must be a POST request"))
 		if err != nil {
+			fmt.Println(err)
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 		}
 		return
@@ -26,6 +28,7 @@ func shortner(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
+		fmt.Println(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -33,11 +36,13 @@ func shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	result, err := db.CreateURL(strBody)
+	result, err := db.AppendUrl(strBody)
 	if err != nil {
+		fmt.Println(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))
 		if err != nil {
+			fmt.Println(err)
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 		}
 		return
@@ -47,6 +52,7 @@ func shortner(c *gin.Context) {
 	c.Header("Content-Type", "text/plain")
 	_, errWrite := c.Writer.Write([]byte(os.Getenv("BASE_URL") + "/" + result))
 	if errWrite != nil {
+		fmt.Println(errWrite)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -64,7 +70,7 @@ func getURL(c *gin.Context) {
 
 	id := c.Request.URL.Path[1:]
 
-	result, err := db.GetURL(id)
+	result, err := db.GetURLByCode(id)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -106,7 +112,7 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	result, err := db.CreateURL(body.URL)
+	result, err := db.AppendUrl(body.URL)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))

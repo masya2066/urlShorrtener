@@ -28,9 +28,13 @@ func main() {
 	if os.Getenv("BASE_URL") == "" {
 		os.Setenv("BASE_URL", cfg.BaseURL)
 	}
+	if os.Getenv("FILE_STORAGE_PATH") == "" {
+		os.Setenv("FILE_STORAGE_PATH", cfg.FileStoragePath)
+	}
 
 	aFlag := flag.String("a", "", "Value for the -a flag")
 	bFlag := flag.String("b", "", "Value for the -b flag")
+	fFlag := flag.String("f", "", "Value for the -f flag")
 
 	flag.Parse()
 
@@ -56,6 +60,21 @@ func main() {
 		fmt.Println("No -b flag provided")
 	}
 
+	if *fFlag != "" {
+		err := os.Setenv("FILE_STORAGE_PATH", *fFlag)
+		if err != nil {
+			fmt.Println("Error setting environment variable:", err)
+			return
+		}
+		fmt.Println("Environment variable FILE_STORAGE_PATH set to:", *fFlag)
+	} else {
+		os.Setenv("FILE_STORAGE_PATH", "storage")
+		fmt.Println("No -f flag provided")
+	}
+
+	if err := db.InitStorage(); err != nil {
+		panic(err)
+	}
 	if err := db.Init(); err != nil {
 		panic(err)
 	}

@@ -15,7 +15,7 @@ func TestShortner(t *testing.T) {
 
 	r.POST("/", shortner)
 
-	requestBody := []byte("https://www.example.com")
+	requestBody := []byte("https://playgate.store")
 	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(requestBody))
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +74,6 @@ func TestShorten(t *testing.T) {
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			rr.Code, http.StatusOK)
+			rr.Code, http.StatusCreated)
 	}
 }
