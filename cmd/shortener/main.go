@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/joho/godotenv"
 	"log"
 	"os"
+
+	"github.com/joho/godotenv"
+
 	"shortener/internal/config"
 	"shortener/internal/db"
 	"shortener/internal/routes"
@@ -17,20 +19,15 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 
-	cfg, errLoad := config.LoadConfig("config.json")
+	errLoad := config.LoadConfig("config.json")
+
 	if errLoad != nil {
 		panic(errLoad)
 	}
 
-	if os.Getenv("SERVER_ADDRESS") == "" {
-		os.Setenv("SERVER_ADDRESS", cfg.ServerAddress)
-	}
-	if os.Getenv("BASE_URL") == "" {
-		os.Setenv("BASE_URL", cfg.BaseURL)
-	}
-
 	aFlag := flag.String("a", "", "Value for the -a flag")
 	bFlag := flag.String("b", "", "Value for the -b flag")
+	fFlag := flag.String("f", "", "Value for the -f flag")
 
 	flag.Parse()
 
@@ -56,6 +53,23 @@ func main() {
 		fmt.Println("No -b flag provided")
 	}
 
+	if *fFlag != "" {
+		err := os.Setenv("FILE_STORAGE_PATH", *fFlag)
+		if err != nil {
+			fmt.Println("Error setting environment variable:", err)
+			return
+		}
+		fmt.Println("Environment variable FILE_STORAGE_PATH set to:", *fFlag)
+	} else {
+		fmt.Println("No -f flag provided")
+	}
+
+	storagePath := os.Getenv("FILE_STORAGE_PATH")
+	fileStorage := db.NewFileStorage(storagePath)
+
+	if err := fileStorage.InitStorage(); err != nil {
+		panic(err)
+	}
 	if err := db.Init(); err != nil {
 		panic(err)
 	}
