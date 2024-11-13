@@ -2,12 +2,23 @@ package config
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"shortener/internal/models"
 )
+
+func checkEnv(config models.Config) {
+	if os.Getenv("SERVER_ADDRESS") == "" {
+		os.Setenv("SERVER_ADDRESS", config.ServerAddress)
+	}
+	if os.Getenv("BASE_URL") == "" {
+		os.Setenv("BASE_URL", config.BaseURL)
+	}
+	if os.Getenv("FILE_STORAGE_PATH") == "" {
+		os.Setenv("FILE_STORAGE_PATH", config.FileStoragePath)
+	}
+}
 
 func LoadConfig(filename string) error {
 	var config models.Config
@@ -47,57 +58,11 @@ func LoadConfig(filename string) error {
 			return err
 		}
 
+		checkEnv(config)
 		return nil
 	}
 
-	if os.Getenv("SERVER_ADDRESS") == "" {
-		os.Setenv("SERVER_ADDRESS", config.ServerAddress)
-	}
-	if os.Getenv("BASE_URL") == "" {
-		os.Setenv("BASE_URL", config.BaseURL)
-	}
-	if os.Getenv("FILE_STORAGE_PATH") == "" {
-		os.Setenv("FILE_STORAGE_PATH", config.FileStoragePath)
-	}
-
-	aFlag := flag.String("a", "", "Value for the -a flag")
-	bFlag := flag.String("b", "", "Value for the -b flag")
-	fFlag := flag.String("f", "", "Value for the -f flag")
-
-	flag.Parse()
-
-	if *aFlag != "" {
-		err := os.Setenv("SERVER_ADDRESS", *aFlag)
-		if err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return err
-		}
-		fmt.Println("Environment variable SERVER_ADDRESS set to:", *aFlag)
-	} else {
-		fmt.Println("No -a flag provided")
-	}
-
-	if *bFlag != "" {
-		err := os.Setenv("BASE_URL", *bFlag)
-		if err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return err
-		}
-		fmt.Println("Environment variable BASE_URL set to:", *bFlag)
-	} else {
-		fmt.Println("No -b flag provided")
-	}
-
-	if *fFlag != "" {
-		err := os.Setenv("FILE_STORAGE_PATH", *fFlag)
-		if err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return err
-		}
-		fmt.Println("Environment variable FILE_STORAGE_PATH set to:", *fFlag)
-	} else {
-		fmt.Println("No -f flag provided")
-	}
+	checkEnv(config)
 
 	return nil
 }
