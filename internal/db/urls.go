@@ -1,8 +1,9 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
+
+	"database/sql"
 	"shortener/internal/pkg/generator"
 )
 

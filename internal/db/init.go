@@ -10,13 +10,30 @@ import (
 	"sync"
 )
 
+type Storage interface {
+	Init() error
+	AppendItem(newItem Item) error
+	DeleteItem(id string) error
+	GetItem(id string) (*Item, error)
+	GetItemByShortCode(code string) (*Item, error)
+}
+
 type Item struct {
 	ID      string `json:"id"`
 	URL     string `json:"url"`
 	LongURL string `json:"long_url"`
 }
 
-var mu sync.Mutex
+type FileStorage struct {
+	mu   sync.Mutex
+	path string
+}
+
+func NewFileStorage(path string) *FileStorage {
+	return &FileStorage{
+		path: path,
+	}
+}
 
 func Init() error {
 	db, err := sql.Open("sqlite3", "./urlShortener.db")
@@ -33,9 +50,9 @@ func Init() error {
 	return db.Ping()
 }
 
-func InitStorage() error {
-	mu.Lock()
-	defer mu.Unlock()
+func (fs *FileStorage) InitStorage() error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	path := os.Getenv("FILE_STORAGE_PATH")
 	if path == "" {
@@ -62,9 +79,9 @@ func InitStorage() error {
 	return nil
 }
 
-func AppendItem(newItem Item) error {
-	mu.Lock()
-	defer mu.Unlock()
+func (fs *FileStorage) AppendItem(newItem Item) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	items, err := getAllItems()
 	if err != nil {
@@ -76,9 +93,9 @@ func AppendItem(newItem Item) error {
 	return writeItemsToFile(items)
 }
 
-func DeleteItem(id string) error {
-	mu.Lock()
-	defer mu.Unlock()
+func (fs *FileStorage) DeleteItem(id string) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	items, err := getAllItems()
 	if err != nil {

@@ -1,13 +1,14 @@
 package db
 
 import (
-	"shortener/internal/pkg/generator"
 	"strconv"
+
+	"shortener/internal/pkg/generator"
 )
 
-func AppendURL(url string) (code string, errCreate error) {
-	mu.Lock()
-	defer mu.Unlock()
+func (fs *FileStorage) AppendURL(url string) (code string, errCreate error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	codeGen := generator.GenerateRandomCode(12)
 

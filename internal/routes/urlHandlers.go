@@ -2,10 +2,14 @@ package routes
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/mattn/go-sqlite3"
+
 	"shortener/internal/db"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
@@ -20,7 +24,7 @@ func shortner(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := c.Writer.Write([]byte("Method must be a POST request"))
 		if err != nil {
-			fmt.Println(err)
+			slog.Default().Error("Error method", err)
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 		}
 		return
@@ -28,7 +32,7 @@ func shortner(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		fmt.Println(err)
+		slog.Default().Error("Error read", err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -36,13 +40,16 @@ func shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	result, err := db.AppendURL(strBody)
+	storagePath := os.Getenv("FILE_STORAGE_PATH")
+	fileStorage := db.NewFileStorage(storagePath)
+
+	result, err := fileStorage.AppendURL(strBody)
 	if err != nil {
 		fmt.Println(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))
 		if err != nil {
-			fmt.Println(err)
+			slog.Default().Error("Error append url", err)
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 		}
 		return
@@ -52,7 +59,7 @@ func shortner(c *gin.Context) {
 	c.Header("Content-Type", "text/plain")
 	_, errWrite := c.Writer.Write([]byte(os.Getenv("BASE_URL") + "/" + result))
 	if errWrite != nil {
-		fmt.Println(errWrite)
+		slog.Default().Error("Error write", errWrite)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -112,7 +119,10 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	result, err := db.AppendURL(body.URL)
+	storagePath := os.Getenv("FILE_STORAGE_PATH")
+	fileStorage := db.NewFileStorage(storagePath)
+
+	result, err := fileStorage.AppendURL(body.URL)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))

@@ -1,8 +1,9 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"os"
+
+	"github.com/gin-gonic/gin"
 	"shortener/internal/routes/middleware"
 )
 
@@ -11,11 +12,11 @@ func Init() error {
 	r := gin.Default()
 	r.Use(middleware.Logger, middleware.Compress)
 
-	r.GET("/:id", middleware.Logger, getURL)
-	r.POST("/", middleware.Logger, shortner)
+	r.GET("/:id", getURL)
+	r.POST("/", shortner)
 	api := r.Group("/api")
 	{
-		api.POST("/shorten", middleware.Logger, shorten)
+		api.POST("/shorten", shorten)
 	}
 
 	err := r.Run(os.Getenv("SERVER_ADDRESS"))
