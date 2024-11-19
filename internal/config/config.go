@@ -8,7 +8,7 @@ import (
 	"shortener/internal/models"
 )
 
-func checkEnv(config models.Config) {
+func checkEnv(config models.Config) error {
 	if os.Getenv("SERVER_ADDRESS") == "" {
 		os.Setenv("SERVER_ADDRESS", config.ServerAddress)
 	}
@@ -18,6 +18,8 @@ func checkEnv(config models.Config) {
 	if os.Getenv("FILE_STORAGE_PATH") == "" {
 		os.Setenv("FILE_STORAGE_PATH", config.FileStoragePath)
 	}
+
+	return nil
 }
 
 func LoadConfig(filename string) error {
@@ -58,11 +60,15 @@ func LoadConfig(filename string) error {
 			return err
 		}
 
-		checkEnv(config)
+		if err := checkEnv(config); err != nil {
+			return err
+		}
 		return nil
 	}
 
-	checkEnv(config)
+	if err := checkEnv(config); err != nil {
+		return err
+	}
 
 	return nil
 }

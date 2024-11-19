@@ -28,6 +28,7 @@ func main() {
 	aFlag := flag.String("a", "", "Value for the -a flag")
 	bFlag := flag.String("b", "", "Value for the -b flag")
 	fFlag := flag.String("f", "", "Value for the -f flag")
+	dFlag := flag.String("d", "", "Value for the -d flag")
 
 	flag.Parse()
 
@@ -64,6 +65,17 @@ func main() {
 		fmt.Println("No -f flag provided")
 	}
 
+	if *dFlag != "" {
+		err := os.Setenv("DATABASE_DSN", *dFlag)
+		if err != nil {
+			fmt.Println("Error setting environment variable:", err)
+			return
+		}
+		fmt.Println("Environment variable DATABASE_DSN set to:", *dFlag)
+	} else {
+		fmt.Println("No -d flag provided")
+	}
+
 	storagePath := os.Getenv("FILE_STORAGE_PATH")
 	fileStorage := db.NewFileStorage(storagePath)
 
@@ -71,7 +83,7 @@ func main() {
 		panic(err)
 	}
 	if err := db.Init(); err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 
 	if err := routes.Init(); err != nil {
