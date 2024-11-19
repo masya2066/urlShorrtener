@@ -76,10 +76,6 @@ func main() {
 		fmt.Println("No -d flag provided")
 	}
 
-	if os.Getenv("DATABASE_DSN") == "" {
-		panic("DATABASE_DSN not set")
-	}
-
 	storagePath := os.Getenv("FILE_STORAGE_PATH")
 	fileStorage := db.NewFileStorage(storagePath)
 
@@ -87,7 +83,7 @@ func main() {
 		panic(err)
 	}
 	if err := db.Init(); err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 
 	if err := routes.Init(); err != nil {
