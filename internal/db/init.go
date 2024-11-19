@@ -1,9 +1,11 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/jackc/pgx/v5"
 	_ "github.com/mattn/go-sqlite3"
 	"os"
 	"path/filepath"
@@ -11,7 +13,6 @@ import (
 )
 
 type Storage interface {
-	Init() error
 	AppendItem(newItem Item) error
 	DeleteItem(id string) error
 	GetItem(id string) (*Item, error)
@@ -29,25 +30,37 @@ type FileStorage struct {
 	path string
 }
 
+type Database interface {
+	PingDB() error
+}
+
+// RealDB implementation
+type RealDB struct {
+	conn *pgx.Conn
+}
+
+func (r *RealDB) PingDB() error {
+	return r.conn.Ping(context.Background())
+}
+
+// Exported variable to allow global access
+var DB Database
+
+// Init function initializes the database connection
+func Init() error {
+	connString := os.Getenv("DATABASE_DSN")
+	conn, err := pgx.Connect(context.Background(), connString)
+	if err != nil {
+		return err
+	}
+	DB = &RealDB{conn: conn}
+	return nil
+}
+
 func NewFileStorage(path string) *FileStorage {
 	return &FileStorage{
 		path: path,
 	}
-}
-
-func Init() error {
-	db, err := sql.Open("sqlite3", "./urlShortener.db")
-	if err != nil {
-		return err
-	}
-
-	defer db.Close()
-
-	if err := migrate(db); err != nil {
-		return err
-	}
-
-	return db.Ping()
 }
 
 func (fs *FileStorage) InitStorage() error {

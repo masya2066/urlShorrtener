@@ -136,3 +136,16 @@ func shorten(c *gin.Context) {
 		Result: os.Getenv("BASE_URL") + "/" + result,
 	})
 }
+
+func pingDB(c *gin.Context) {
+	if err := db.DB.PingDB(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "OK",
+	})
+}
