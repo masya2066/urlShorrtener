@@ -76,12 +76,6 @@ func main() {
 		fmt.Println("No -d flag provided")
 	}
 
-	storagePath := os.Getenv("FILE_STORAGE_PATH")
-	fileStorage := db.NewFileStorage(storagePath)
-
-	if err := fileStorage.InitStorage(); err != nil {
-		panic(err)
-	}
 	if err := db.Init(); err != nil {
 		fmt.Println(err)
 	}
