@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func (fs *FileStorage) AppendBatchUrl(items []request.Batch) (resItems []response.Batch, error error) {
+func (fs *FileStorage) AppendBatchURL(items []request.Batch) (resItems []response.Batch, error error) {
 	var res []response.Batch
 	for _, req := range items {
 		if _, err := fs.AppendURL(req.OriginalURL, req.CorrelationID); err != nil {
