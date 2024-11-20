@@ -1,30 +1,67 @@
 package db
 
 import (
-	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5"
+	"os"
 
 	"shortener/internal/pkg/generator"
 )
 
-func (r *RealDB) GetURL(id string) (string, error) {
-	var longURL string
-	err := r.conn.QueryRow(context.Background(), "SELECT longURL FROM urlList WHERE url_id = $1", id).Scan(&longURL)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return "", fmt.Errorf("no URL found with id: %s", id)
+func GetURL(id string) (string, error) {
+	if os.Getenv("DATABASE_DSN") != "" {
+		res, err := DB.GetURLPostgres(id)
+		if err != nil {
+			return "", err
 		}
-		return "", err
+
+		return res, nil
+	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
+		storagePath := os.Getenv("FILE_STORAGE_PATH")
+		fileStorage := NewFileStorage(storagePath)
+
+		result, err := fileStorage.GetURLByCode(id)
+		if err != nil {
+			fmt.Println(1)
+			return "", err
+		}
+		return result, nil
+	} else {
+		res, err := getURLSQLite(id)
+		if err != nil {
+			return "", err
+		}
+
+		return res, nil
 	}
-	return longURL, nil
 }
 
-func (r *RealDB) CreateURL(url string) (string, error) {
+func CreateURL(url string) (string, error) {
 	code := generator.GenerateRandomCode(12)
-	_, err := r.conn.Exec(context.Background(), "INSERT INTO urlList (url_id, longURL) VALUES ($1, $2)", code, url)
-	if err != nil {
-		return "", err
+
+	if os.Getenv("DATABASE_DSN") != "" {
+		res, err := DB.CreateURLPostgres(code, url)
+		if err != nil {
+			return "", err
+		}
+
+		return res, nil
+	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
+
+		storagePath := os.Getenv("FILE_STORAGE_PATH")
+		fileStorage := NewFileStorage(storagePath)
+
+		_, err := fileStorage.AppendURL(url, code)
+		if err != nil {
+			return "", err
+		}
+
+		return code, nil
+	} else {
+		res, err := createURLSQLite(url, code)
+		if err != nil {
+			return "", err
+		}
+
+		return res, nil
 	}
-	return code, nil
 }

@@ -40,7 +40,7 @@ func shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	result, err := db.DB.CreateURL(strBody)
+	result, err := db.CreateURL(strBody)
 	if err != nil {
 		fmt.Println(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
@@ -74,7 +74,7 @@ func getURL(c *gin.Context) {
 
 	id := c.Request.URL.Path[1:]
 
-	result, err := db.DB.GetURL(id)
+	result, err := db.GetURL(id)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -116,7 +116,7 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	result, err := db.DB.CreateURL(body.URL)
+	result, err := db.CreateURL(body.URL)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))

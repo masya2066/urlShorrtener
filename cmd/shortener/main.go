@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -76,8 +77,18 @@ func main() {
 		fmt.Println("No -d flag provided")
 	}
 
-	if err := db.Init(); err != nil {
-		fmt.Println(err)
+	storagePath := os.Getenv("FILE_STORAGE_PATH")
+	fileStorage := db.NewFileStorage(storagePath)
+
+	if err := fileStorage.InitStorage(); err != nil {
+		slog.Default().Error("Error init storage", err)
+	}
+	if err := db.InitPostgres(); err != nil {
+		slog.Default().Error("Error init postgres", err)
+	}
+
+	if err := db.InitSQLite(); err != nil {
+		slog.Default().Error("Error init sqlite", err)
 	}
 
 	if err := routes.Init(); err != nil {

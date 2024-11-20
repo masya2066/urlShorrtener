@@ -2,9 +2,11 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	_ "github.com/mattn/go-sqlite3"
+	"log/slog"
 	"os"
 	"sync"
 )
@@ -29,8 +31,8 @@ type FileStorage struct {
 
 type Database interface {
 	PingDB() error
-	GetURL(id string) (string, error)
-	CreateURL(url string) (string, error)
+	CreateURLPostgres(code string, url string) (string, error)
+	GetURLPostgres(id string) (string, error)
 }
 
 type RealDB struct {
@@ -43,14 +45,14 @@ func (r *RealDB) PingDB() error {
 
 var DB Database
 
-func Init() error {
+func InitPostgres() error {
 	connString := os.Getenv("DATABASE_DSN")
 	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {
 		return err
 	}
 	realDB := &RealDB{conn: conn}
-	if err := realDB.MigrateDB(); err != nil {
+	if err := realDB.migratePostgres(); err != nil {
 		return err
 	}
 
@@ -58,7 +60,7 @@ func Init() error {
 	return nil
 }
 
-func (r *RealDB) MigrateDB() error {
+func (r *RealDB) migratePostgres() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS urlList (
 		url_id TEXT PRIMARY KEY,
@@ -68,5 +70,35 @@ func (r *RealDB) MigrateDB() error {
 	if err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)
 	}
+	return nil
+}
+
+func InitSQLite() error {
+	db, err := sql.Open("sqlite3", "./urlShortener.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := migrateSQLite(db); err != nil {
+		return err
+	}
+
+	slog.Default().Info("Connected to SQLite and Migrated")
+	return db.Ping()
+}
+
+func migrateSQLite(db *sql.DB) error {
+	createURLListTable := `CREATE TABLE IF NOT EXISTS urlList
+	(
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		url_id TEXT NOT NULL,
+		longURL TEXT NOT NULL
+	);`
+
+	_, err := db.Exec(createURLListTable)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

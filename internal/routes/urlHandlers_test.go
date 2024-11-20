@@ -13,21 +13,52 @@ import (
 	"testing"
 )
 
-// MockDB implements the Database interface
 type MockDB struct {
-	PingError error
+	PingError         error
+	CreateError       error
+	GetError          error
+	CreatePostgresErr error
+	GetPostgresErr    error
+	MockURL           string
+	MockCode          string
 }
 
 func (m *MockDB) PingDB() error {
 	return m.PingError
 }
 
+func (m *MockDB) CreateURL(url string) (string, error) {
+	if m.CreateError != nil {
+		return "", m.CreateError
+	}
+	return m.MockCode, nil // Return a mock code
+}
+
+func (m *MockDB) GetURL(id string) (string, error) {
+	if m.GetError != nil {
+		return "", m.GetError
+	}
+	return m.MockURL, nil // Return a mock URL
+}
+
+func (m *MockDB) CreateURLPostgres(code string, url string) (string, error) {
+	if m.CreatePostgresErr != nil {
+		return "", m.CreatePostgresErr
+	}
+	return code, nil // Return the provided code as-is for testing
+}
+
+func (m *MockDB) GetURLPostgres(id string) (string, error) {
+	if m.GetPostgresErr != nil {
+		return "", m.GetPostgresErr
+	}
+	return m.MockURL, nil // Return a mock URL
+}
+
 func TestPingDB(t *testing.T) {
-	// Backup the original Database
 	originalDB := db.DB
 	defer func() { db.DB = originalDB }()
 
-	// Test cases
 	tests := []struct {
 		name       string
 		mockError  error
@@ -40,20 +71,16 @@ func TestPingDB(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set the mock database
 			db.DB = &MockDB{PingError: tt.mockError}
 
-			// Set up the Gin router
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
 			router.GET("/ping", pingDB)
 
-			// Perform the request
 			req, _ := http.NewRequest(http.MethodGet, "/ping", nil)
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
 
-			// Assert response
 			assert.Equal(t, tt.wantStatus, resp.Code)
 			assert.JSONEq(t, tt.wantBody, resp.Body.String())
 		})
