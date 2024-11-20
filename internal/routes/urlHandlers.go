@@ -40,10 +40,7 @@ func shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	storagePath := os.Getenv("FILE_STORAGE_PATH")
-	fileStorage := db.NewFileStorage(storagePath)
-
-	result, err := fileStorage.AppendURL(strBody)
+	result, err := db.CreateURL(strBody)
 	if err != nil {
 		fmt.Println(err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
@@ -77,7 +74,7 @@ func getURL(c *gin.Context) {
 
 	id := c.Request.URL.Path[1:]
 
-	result, err := db.GetURLByCode(id)
+	result, err := db.GetURL(id)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -119,10 +116,7 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	storagePath := os.Getenv("FILE_STORAGE_PATH")
-	fileStorage := db.NewFileStorage(storagePath)
-
-	result, err := fileStorage.AppendURL(body.URL)
+	result, err := db.CreateURL(body.URL)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -134,5 +128,18 @@ func shorten(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, response.Shortener{
 		Result: os.Getenv("BASE_URL") + "/" + result,
+	})
+}
+
+func pingDB(c *gin.Context) {
+	if err := db.DB.PingDB(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "OK",
 	})
 }
