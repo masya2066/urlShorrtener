@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"shortener/internal/db"
 	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 	"testing"
 )
 
@@ -53,6 +54,18 @@ func (m *MockDB) GetURLPostgres(id string) (string, error) {
 		return "", m.GetPostgresErr
 	}
 	return m.MockURL, nil // Return a mock URL
+}
+
+func (m *MockDB) CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, err error) {
+
+	for _, item := range items {
+		resItems = append(resItems, response.Batch{
+			CorrelationID: item.CorrelationID,
+			OriginalURL:   item.OriginalURL,
+		})
+	}
+
+	return resItems, nil
 }
 
 func TestPingDB(t *testing.T) {
