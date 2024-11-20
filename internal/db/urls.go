@@ -79,7 +79,7 @@ func CreateBatchURL(items []request.Batch) ([]response.Batch, error) {
 		storagePath := os.Getenv("FILE_STORAGE_PATH")
 		fileStorage := NewFileStorage(storagePath)
 
-		res, err := fileStorage.AppendBatchUrl(items)
+		res, err := fileStorage.AppendBatchURL(items)
 		if err != nil {
 			return nil, err
 		}
