@@ -30,31 +30,42 @@ func (r *RealDB) GetURLPostgres(id string) (string, error) {
 	return longURL, nil
 }
 
-func (r *RealDB) CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, error error) {
+func (r *RealDB) CreateBatchURLPostgres(items []request.Batch) ([]response.Batch, error) {
 	tx, err := r.conn.Begin(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer tx.Rollback(context.Background())
 
-	var res []response.Batch
-
 	for _, req := range items {
-		if _, err := tx.Exec(context.Background(),
+		var exists bool
+		err := tx.QueryRow(context.Background(),
+			"SELECT EXISTS(SELECT 1 FROM urlList WHERE url_id = $1)", req.CorrelationID).Scan(&exists)
+		if err != nil {
+			return nil, fmt.Errorf("error checking for existing ID %s: %w", req.CorrelationID, err)
+		}
+		if exists {
+			return nil, fmt.Errorf("ID %s already exists", req.CorrelationID)
+		}
+	}
+
+	var res []response.Batch
+	for _, req := range items {
+		_, err := tx.Exec(context.Background(),
 			"INSERT INTO urlList (url_id, longURL) VALUES ($1, $2)",
-			req.CorrelationID, req.OriginalURL); err != nil {
-			return nil, err
+			req.CorrelationID, req.OriginalURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert item with ID %s: %w", req.CorrelationID, err)
 		}
 
 		res = append(res, response.Batch{
 			CorrelationID: req.CorrelationID,
-			OriginalURL:   req.OriginalURL,
+			OriginalURL:   req.OriginalURL, // Replace with your short URL logic
 		})
 	}
 
-	// Commit transaction
 	if err := tx.Commit(context.Background()); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return res, nil

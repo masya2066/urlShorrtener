@@ -146,10 +146,10 @@ func shortenBatch(c *gin.Context) {
 
 	result, err := db.CreateBatchURL(body)
 	if err != nil {
-		c.Writer.WriteHeader(http.StatusInternalServerError)
+		c.Writer.WriteHeader(http.StatusBadRequest)
 		_, err := c.Writer.Write([]byte(err.Error()))
 		if err != nil {
-			c.Writer.WriteHeader(http.StatusInternalServerError)
+			c.Writer.WriteHeader(http.StatusBadRequest)
 		}
 		return
 	}
