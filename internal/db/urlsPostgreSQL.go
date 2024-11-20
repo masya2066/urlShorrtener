@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 )
 
 func (r *RealDB) CreateURLPostgres(code string, url string) (string, error) {
@@ -26,4 +28,34 @@ func (r *RealDB) GetURLPostgres(id string) (string, error) {
 	}
 
 	return longURL, nil
+}
+
+func (r *RealDB) CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, error error) {
+	tx, err := r.conn.Begin(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(context.Background())
+
+	var res []response.Batch
+
+	for _, req := range items {
+		if _, err := tx.Exec(context.Background(),
+			"INSERT INTO urlList (url_id, longURL) VALUES ($1, $2)",
+			req.CorrelationID, req.OriginalURL); err != nil {
+			return nil, err
+		}
+
+		res = append(res, response.Batch{
+			CorrelationID: req.CorrelationID,
+			OriginalURL:   req.OriginalURL,
+		})
+	}
+
+	// Commit transaction
+	if err := tx.Commit(context.Background()); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

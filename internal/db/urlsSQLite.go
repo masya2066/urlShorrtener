@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 )
 
 func getURLSQLite(id string) (string, error) {
@@ -38,4 +40,22 @@ func createURLSQLite(url string, code string) (string, error) {
 	}
 
 	return code, nil
+}
+
+func createBatchURLSQLite(items []request.Batch) (resItems []response.Batch, error error) {
+	var res []response.Batch
+
+	for _, req := range items {
+		_, err := createURLSQLite(req.OriginalURL, req.CorrelationID)
+		if err != nil {
+			return nil, err
+		}
+
+		res = append(res, response.Batch{
+			CorrelationID: req.CorrelationID,
+			OriginalURL:   req.OriginalURL,
+		})
+	}
+
+	return res, nil
 }

@@ -8,11 +8,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"os"
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 	"sync"
 )
 
 type Storage interface {
 	AppendItem(newItem Item) error
+	AppendBatch(newItems []Item) error
 	DeleteItem(id string) error
 	GetItem(id string) (*Item, error)
 	GetItemByShortCode(code string) (*Item, error)
@@ -33,6 +36,7 @@ type Database interface {
 	PingDB() error
 	CreateURLPostgres(code string, url string) (string, error)
 	GetURLPostgres(id string) (string, error)
+	CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, err error)
 }
 
 type RealDB struct {

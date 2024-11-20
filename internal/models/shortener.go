@@ -1,8 +1,4 @@
-package request
-
-type Shortener struct {
-	URL string `json:"url"`
-}
+package models
 
 type Batch struct {
 	CorrelationID string `json:"correlation_id"`

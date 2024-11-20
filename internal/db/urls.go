@@ -3,6 +3,8 @@ package db
 import (
 	"fmt"
 	"os"
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 
 	"shortener/internal/pkg/generator"
 )
@@ -63,5 +65,31 @@ func CreateURL(url string) (string, error) {
 		}
 
 		return res, nil
+	}
+}
+
+func CreateBatchURL(items []request.Batch) ([]response.Batch, error) {
+	if os.Getenv("DATABASE_DSN") != "" {
+		res, err := DB.CreateBatchURLPostgres(items)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
+		storagePath := os.Getenv("FILE_STORAGE_PATH")
+		fileStorage := NewFileStorage(storagePath)
+
+		res, err := fileStorage.AppendBatchUrl(items)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	} else {
+		res, err := createBatchURLSQLite(items)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+
 	}
 }

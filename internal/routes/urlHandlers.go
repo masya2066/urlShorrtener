@@ -131,6 +131,33 @@ func shorten(c *gin.Context) {
 	})
 }
 
+func shortenBatch(c *gin.Context) {
+	var body []request.Batch
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if len(body) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "batch cannot be empty"})
+		return
+	}
+
+	result, err := db.CreateBatchURL(body)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		_, err := c.Writer.Write([]byte(err.Error()))
+		if err != nil {
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	c.JSON(http.StatusCreated, result)
+
+}
+
 func pingDB(c *gin.Context) {
 	if err := db.DB.PingDB(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

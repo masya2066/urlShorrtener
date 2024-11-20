@@ -15,6 +15,7 @@ func Init() error {
 	r.GET("/:id", getURL)
 	r.POST("/", shortner)
 	r.GET("/ping", pingDB)
+	r.POST("/api/shorten/batch", shortenBatch)
 	api := r.Group("/api")
 	{
 		api.POST("/shorten", shorten)

@@ -6,8 +6,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 	"strconv"
 )
+
+func (fs *FileStorage) AppendBatchUrl(items []request.Batch) (resItems []response.Batch, error error) {
+	var res []response.Batch
+	for _, req := range items {
+		if _, err := fs.AppendURL(req.OriginalURL, req.CorrelationID); err != nil {
+			return nil, err
+		}
+
+		res = append(res, response.Batch{
+			CorrelationID: req.CorrelationID,
+			OriginalURL:   req.OriginalURL,
+		})
+	}
+
+	return res, nil
+}
 
 func (fs *FileStorage) AppendURL(url string, codeGen string) (code string, errCreate error) {
 	fs.mu.Lock()
