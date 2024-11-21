@@ -20,7 +20,7 @@ func (fs *FileStorage) AppendBatchURL(items []request.Batch) (resItems []respons
 
 		res = append(res, response.Batch{
 			CorrelationID: req.CorrelationID,
-			OriginalURL:   req.OriginalURL,
+			ShortURL:      "http://" + os.Getenv("SERVER_ADDRESS") + "/" + req.CorrelationID,
 		})
 	}
 

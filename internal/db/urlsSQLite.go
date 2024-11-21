@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
 )
@@ -53,7 +54,7 @@ func createBatchURLSQLite(items []request.Batch) (resItems []response.Batch, err
 
 		res = append(res, response.Batch{
 			CorrelationID: req.CorrelationID,
-			OriginalURL:   req.OriginalURL,
+			ShortURL:      "http://" + os.Getenv("SERVER_ADDRESS") + "/" + req.CorrelationID,
 		})
 	}
 

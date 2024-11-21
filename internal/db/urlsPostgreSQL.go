@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"os"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
 )
@@ -60,7 +61,7 @@ func (r *RealDB) CreateBatchURLPostgres(items []request.Batch) ([]response.Batch
 
 		res = append(res, response.Batch{
 			CorrelationID: req.CorrelationID,
-			OriginalURL:   req.OriginalURL, // Replace with your short URL logic
+			ShortURL:      "http://" + os.Getenv("SERVER_ADDRESS") + "/" + req.CorrelationID,
 		})
 	}
 
