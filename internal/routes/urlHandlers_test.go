@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"shortener/internal/db"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
@@ -61,7 +62,7 @@ func (m *MockDB) CreateBatchURLPostgres(items []request.Batch) (resItems []respo
 	for _, item := range items {
 		resItems = append(resItems, response.Batch{
 			CorrelationID: item.CorrelationID,
-			OriginalURL:   item.OriginalURL,
+			ShortURL:      "http://" + os.Getenv("SERVER_ADDRESS") + "/" + item.OriginalURL,
 		})
 	}
 
