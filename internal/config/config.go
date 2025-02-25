@@ -133,6 +133,8 @@ func setConfigEnv(config models.Config) error {
 			return err
 		}
 		fmt.Println("Environment variable FILE_STORAGE_PATH from config set to:", config.FileStoragePath)
+	} else {
+		config.FileStoragePath = os.Getenv("FILE_STORAGE_PATH")
 	}
 
 	return nil
