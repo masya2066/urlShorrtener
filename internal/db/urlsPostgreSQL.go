@@ -74,7 +74,7 @@ func (r *RealDB) CreateBatchURLPostgres(items []request.Batch) ([]response.Batch
 func (r *RealDB) GetShortURLByLongURLPostgres(longURL string) (string, error) {
 	var shortURL string
 
-	err := r.conn.QueryRow(context.Background(), "SELECT shortURL FROM urlList WHERE longURL = $1", longURL).Scan(&longURL)
+	err := r.conn.QueryRow(context.Background(), "SELECT url_id FROM urlList WHERE longURL = $1", longURL).Scan(&longURL)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return "", fmt.Errorf("no URL found URL: %s", longURL)
