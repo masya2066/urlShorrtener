@@ -1,7 +1,8 @@
 package routes
 
 import (
-	"fmt"
+	"errors"
+	"github.com/jackc/pgx/v5/pgconn"
 	"io"
 	"log/slog"
 	"net/http"
@@ -42,13 +43,27 @@ func shortner(c *gin.Context) {
 
 	result, err := db.CreateURL(strBody)
 	if err != nil {
-		fmt.Println(err)
-		c.Writer.WriteHeader(http.StatusInternalServerError)
-		_, err := c.Writer.Write([]byte(err.Error()))
-		if err != nil {
-			slog.Default().Error("Error append url", err)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
+			_, err := c.Writer.Write([]byte(err.Error()))
+			if err != nil {
+				c.Writer.WriteHeader(http.StatusInternalServerError)
+			}
+			return
 		}
+
+		code, err := db.GetShortURLByLongURL(strBody)
+		if err != nil {
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+			_, err := c.Writer.Write([]byte(err.Error()))
+			if err != nil {
+				c.Writer.WriteHeader(http.StatusInternalServerError)
+			}
+			return
+		}
+
+		c.JSON(http.StatusConflict, os.Getenv("BASE_URL")+"/"+code)
 		return
 	}
 
@@ -118,11 +133,27 @@ func shorten(c *gin.Context) {
 
 	result, err := db.CreateURL(body.URL)
 	if err != nil {
-		c.Writer.WriteHeader(http.StatusInternalServerError)
-		_, err := c.Writer.Write([]byte(err.Error()))
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+			_, err := c.Writer.Write([]byte(err.Error()))
+			if err != nil {
+				c.Writer.WriteHeader(http.StatusInternalServerError)
+			}
+			return
+		}
+
+		code, err := db.GetShortURLByLongURL(body.URL)
 		if err != nil {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
+			_, err := c.Writer.Write([]byte(err.Error()))
+			if err != nil {
+				c.Writer.WriteHeader(http.StatusInternalServerError)
+			}
+			return
 		}
+
+		c.JSON(http.StatusConflict, os.Getenv("BASE_URL")+"/"+code)
 		return
 	}
 

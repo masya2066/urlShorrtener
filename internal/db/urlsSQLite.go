@@ -27,6 +27,24 @@ func getURLSQLite(id string) (string, error) {
 	return longURL, nil
 }
 
+func getShortURLByLongURLSQLite(longURL string) (string, error) {
+	db, err := sql.Open("sqlite3", "./urlShortener.db")
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+
+	var shortURL string
+	err = db.QueryRow("SELECT url_id FROM urlList WHERE longURL = ?", longURL).Scan(&shortURL)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("no URL found URL: %s", longURL)
+		}
+	}
+
+	return shortURL, nil
+}
+
 func createURLSQLite(url string, code string) (string, error) {
 	db, err := sql.Open("sqlite3", "./urlShortener.db")
 	if err != nil {

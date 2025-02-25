@@ -93,3 +93,28 @@ func CreateBatchURL(items []request.Batch) ([]response.Batch, error) {
 
 	}
 }
+
+func GetShortURLByLongURL(longURL string) (string, error) {
+	if os.Getenv("DATABASE_DSN") != "" {
+		res, err := DB.GetShortURLByLongURLPostgres(longURL)
+		if err != nil {
+			return "", err
+		}
+		return res, nil
+	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
+		storagePath := os.Getenv("FILE_STORAGE_PATH")
+		fileStorage := NewFileStorage(storagePath)
+
+		res, err := fileStorage.GetShortURLByLongURL(longURL)
+		if err != nil {
+			return "", err
+		}
+		return res, nil
+	} else {
+		res, err := getShortURLByLongURLSQLite(longURL)
+		if err != nil {
+			return "", err
+		}
+		return res, nil
+	}
+}

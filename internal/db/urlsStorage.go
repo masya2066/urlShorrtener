@@ -68,6 +68,23 @@ func (fs *FileStorage) GetURLByCode(code string) (string, error) {
 	return longURL, nil
 }
 
+func (fs *FileStorage) GetShortURLByLongURL(longURL string) (string, error) {
+	items, err := fs.getAllItemsStorage()
+	if err != nil {
+		return "", err
+	}
+
+	var code string
+	for _, item := range items {
+		if item.LongURL == longURL {
+			code = item.URL
+			break
+		}
+	}
+
+	return code, errors.New("item not found")
+}
+
 func NewFileStorage(path string) *FileStorage {
 	return &FileStorage{
 		path: path,
