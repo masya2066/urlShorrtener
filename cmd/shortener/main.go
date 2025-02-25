@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"os"
-
 	"shortener/internal/config"
 	"shortener/internal/db"
 	"shortener/internal/routes"
@@ -25,7 +23,6 @@ func main() {
 		panic(errLoad)
 	}
 
-	fmt.Println(os.Getenv("FILE_STORAGE_PATH"))
 	fmt.Println(conf)
 	fileStorage := db.NewFileStorage(conf.FileStoragePath)
 

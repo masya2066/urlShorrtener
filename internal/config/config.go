@@ -108,12 +108,6 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 
 		return updatedConf, nil
 	}
-
-	updatedConf, err := setConfigEnv(config)
-	if err != nil {
-		return models.Config{}, err
-	}
-	return updatedConf, nil
 }
 
 func setConfigEnv(config models.Config) (conf models.Config, error error) {
