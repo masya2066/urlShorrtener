@@ -77,11 +77,12 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 		}
 		fmt.Println("Default config created:", filename)
 
-		fmt.Println("Created config file:", config)
-
-		if err := setConfigEnv(config); err != nil {
+		updatedConf, err := setConfigEnv(config)
+		if err != nil {
 			return models.Config{}, err
 		}
+
+		return updatedConf, nil
 
 	} else {
 		file, err := os.Open(filename)
@@ -100,23 +101,26 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 			return models.Config{}, err
 		}
 
-		if err := setConfigEnv(config); err != nil {
+		updatedConf, err := setConfigEnv(config)
+		if err != nil {
 			return models.Config{}, err
 		}
-		return config, nil
+
+		return updatedConf, nil
 	}
 
-	if err := setConfigEnv(config); err != nil {
+	updatedConf, err := setConfigEnv(config)
+	if err != nil {
 		return models.Config{}, err
 	}
-	return config, nil
+	return updatedConf, nil
 }
 
-func setConfigEnv(config models.Config) error {
+func setConfigEnv(config models.Config) (conf models.Config, error error) {
 	if os.Getenv("BASE_URL") == "" {
 		if err := os.Setenv("BASE_URL", config.BaseURL); err != nil {
 			fmt.Println("Error setting environment variable:", err)
-			return err
+			return models.Config{}, err
 		}
 		fmt.Println("Environment variable BASE_URL from config set to:", config.BaseURL)
 	}
@@ -124,7 +128,7 @@ func setConfigEnv(config models.Config) error {
 	if os.Getenv("SERVER_ADDRESS") == "" {
 		if err := os.Setenv("SERVER_ADDRESS", config.ServerAddress); err != nil {
 			fmt.Println("Error setting environment variable:", err)
-			return err
+			return models.Config{}, err
 		}
 		fmt.Println("Environment variable SERVER_ADDRESS from config set to:", config.ServerAddress)
 	}
@@ -132,12 +136,14 @@ func setConfigEnv(config models.Config) error {
 	if os.Getenv("FILE_STORAGE_PATH") == "" {
 		if err := os.Setenv("FILE_STORAGE_PATH", config.FileStoragePath); err != nil {
 			fmt.Println("Error setting environment variable:", err)
-			return err
+			return models.Config{}, err
 		}
 		fmt.Println("Environment variable FILE_STORAGE_PATH from config set to:", config.FileStoragePath)
-	} else {
+	}
+
+	if os.Getenv("FILE_STORAGE_PATH") != "" {
 		config.FileStoragePath = os.Getenv("FILE_STORAGE_PATH")
 	}
 
-	return nil
+	return config, nil
 }
