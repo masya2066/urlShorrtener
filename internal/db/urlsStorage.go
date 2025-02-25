@@ -109,6 +109,8 @@ func (fs *FileStorage) InitStorage() error {
 		defer file.Close()
 
 		encoder := json.NewEncoder(file)
+
+		fmt.Println("File created:", fs.path)
 		return encoder.Encode(emptyData)
 	}
 
