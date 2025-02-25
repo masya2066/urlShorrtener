@@ -112,7 +112,7 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 }
 
 func setConfigEnv(config models.Config) error {
-	if config.BaseURL != "" {
+	if config.BaseURL == "" {
 		if err := os.Setenv("BASE_URL", config.BaseURL); err != nil {
 			fmt.Println("Error setting environment variable:", err)
 			return err
@@ -120,7 +120,7 @@ func setConfigEnv(config models.Config) error {
 		fmt.Println("Environment variable BASE_URL from config set to:", config.BaseURL)
 	}
 
-	if config.ServerAddress != "" {
+	if config.ServerAddress == "" {
 		if err := os.Setenv("SERVER_ADDRESS", config.ServerAddress); err != nil {
 			fmt.Println("Error setting environment variable:", err)
 			return err
