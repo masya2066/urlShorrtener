@@ -57,6 +57,10 @@ func (m *MockDB) GetURLPostgres(id string) (string, error) {
 	return m.MockURL, nil // Return a mock URL
 }
 
+func (m *MockDB) GetShortURLByLongURLPostgres(longURL string) (string, error) {
+	return m.MockCode, nil
+}
+
 func (m *MockDB) CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, err error) {
 
 	for _, item := range items {
