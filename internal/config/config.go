@@ -46,7 +46,6 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 	} else {
 		fmt.Println("No -f flag provided")
 	}
-
 	if *dFlag != "" {
 		if err := os.Setenv("DATABASE_DSN", *dFlag); err != nil {
 			fmt.Println("Error setting environment variable:", err)
