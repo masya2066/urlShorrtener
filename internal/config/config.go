@@ -77,6 +77,8 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 		}
 		fmt.Println("Default config created:", filename)
 
+		fmt.Println("Created config file:", config)
+
 		if err := setConfigEnv(config); err != nil {
 			return models.Config{}, err
 		}
