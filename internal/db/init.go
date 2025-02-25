@@ -54,6 +54,7 @@ var DB Database
 
 func InitPostgres() error {
 	connString := os.Getenv("DATABASE_DSN")
+	fmt.Println(connString)
 	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {
 		return err

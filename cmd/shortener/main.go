@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"log/slog"
 	"shortener/internal/config"
@@ -23,7 +22,6 @@ func main() {
 		panic(errLoad)
 	}
 
-	fmt.Println(conf)
 	fileStorage := db.NewFileStorage(conf.FileStoragePath)
 
 	if err := fileStorage.InitStorage(); err != nil {

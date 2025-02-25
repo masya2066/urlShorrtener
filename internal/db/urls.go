@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"os"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
@@ -23,7 +22,6 @@ func GetURL(id string) (string, error) {
 
 		result, err := fileStorage.GetURLByCode(id)
 		if err != nil {
-			fmt.Println(1)
 			return "", err
 		}
 		return result, nil

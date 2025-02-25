@@ -10,7 +10,6 @@ import (
 )
 
 func (r *RealDB) CreateURLPostgres(code string, url string) (string, error) {
-	fmt.Println(code)
 	_, err := r.conn.Exec(context.Background(), "INSERT INTO urlList (url_id, longURL) VALUES ($1, $2)", code, url)
 	if err != nil {
 		return "", err
@@ -74,7 +73,7 @@ func (r *RealDB) CreateBatchURLPostgres(items []request.Batch) ([]response.Batch
 func (r *RealDB) GetShortURLByLongURLPostgres(longURL string) (string, error) {
 	var shortURL string
 
-	err := r.conn.QueryRow(context.Background(), "SELECT url_id FROM urlList WHERE longURL = $1", longURL).Scan(&longURL)
+	err := r.conn.QueryRow(context.Background(), "SELECT url_id FROM urlList WHERE longURL = $1", longURL).Scan(&shortURL)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return "", fmt.Errorf("no URL found URL: %s", longURL)
