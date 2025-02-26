@@ -160,7 +160,9 @@ func shorten(c *gin.Context) {
 			return
 		}
 
-		c.String(http.StatusConflict, os.Getenv("BASE_URL")+"/"+code)
+		c.JSON(http.StatusConflict, response.Shortener{
+			Result: os.Getenv("BASE_URL") + "/" + code,
+		})
 		return
 	}
 
