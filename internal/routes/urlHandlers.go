@@ -63,7 +63,14 @@ func shortner(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusConflict, os.Getenv("BASE_URL")+"/"+code)
+		c.Writer.WriteHeader(http.StatusConflict)
+		c.Header("Content-Type", "text/plain")
+		_, errWrite := c.Writer.Write([]byte(os.Getenv("BASE_URL") + "/" + code))
+		if errWrite != nil {
+			slog.Default().Error("Error write", errWrite)
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 
@@ -153,7 +160,7 @@ func shorten(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusConflict, os.Getenv("BASE_URL")+"/"+code)
+		c.String(http.StatusConflict, os.Getenv("BASE_URL")+"/"+code)
 		return
 	}
 
