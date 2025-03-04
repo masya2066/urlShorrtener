@@ -2,14 +2,12 @@ package routes
 
 import (
 	"errors"
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
+	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-
-	"github.com/gin-gonic/gin"
-	_ "github.com/mattn/go-sqlite3"
 
 	"shortener/internal/db"
 	"shortener/internal/models/request"
@@ -20,7 +18,7 @@ type CreateBody struct {
 	string
 }
 
-func shortner(c *gin.Context) {
+func (a *App) shortner(c *gin.Context) {
 	if c.Request.Method != http.MethodPost {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := c.Writer.Write([]byte("Method must be a POST request"))
@@ -41,7 +39,7 @@ func shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	result, err := db.CreateURL(strBody)
+	result, err := db.CreateURL(strBody, a.Cfg)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
@@ -53,7 +51,7 @@ func shortner(c *gin.Context) {
 			return
 		}
 
-		code, err := db.GetShortURLByLongURL(strBody)
+		code, err := db.GetShortURLByLongURL(strBody, a.Cfg)
 		if err != nil {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 			_, err := c.Writer.Write([]byte(err.Error()))
@@ -65,7 +63,7 @@ func shortner(c *gin.Context) {
 
 		c.Writer.WriteHeader(http.StatusConflict)
 		c.Header("Content-Type", "text/plain")
-		_, errWrite := c.Writer.Write([]byte(os.Getenv("BASE_URL") + "/" + code))
+		_, errWrite := c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + code))
 		if errWrite != nil {
 			slog.Default().Error("Error write", errWrite)
 			c.Writer.WriteHeader(http.StatusInternalServerError)
@@ -76,7 +74,7 @@ func shortner(c *gin.Context) {
 
 	c.Writer.WriteHeader(http.StatusCreated)
 	c.Header("Content-Type", "text/plain")
-	_, errWrite := c.Writer.Write([]byte(os.Getenv("BASE_URL") + "/" + result))
+	_, errWrite := c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + result))
 	if errWrite != nil {
 		slog.Default().Error("Error write", errWrite)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
@@ -84,7 +82,7 @@ func shortner(c *gin.Context) {
 	}
 }
 
-func getURL(c *gin.Context) {
+func (a *App) getURL(c *gin.Context) {
 	if c.Request.Method != http.MethodGet {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := c.Writer.Write([]byte("Method must be a GET request"))
@@ -96,7 +94,7 @@ func getURL(c *gin.Context) {
 
 	id := c.Request.URL.Path[1:]
 
-	result, err := db.GetURL(id)
+	result, err := db.GetURL(id, a.Cfg)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -119,7 +117,7 @@ func getURL(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, result)
 }
 
-func shorten(c *gin.Context) {
+func (a *App) shorten(c *gin.Context) {
 	var body request.Shortener
 
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -138,7 +136,7 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	result, err := db.CreateURL(body.URL)
+	result, err := db.CreateURL(body.URL, a.Cfg)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
@@ -150,7 +148,7 @@ func shorten(c *gin.Context) {
 			return
 		}
 
-		code, err := db.GetShortURLByLongURL(body.URL)
+		code, err := db.GetShortURLByLongURL(body.URL, a.Cfg)
 		if err != nil {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 			_, err := c.Writer.Write([]byte(err.Error()))
@@ -161,17 +159,17 @@ func shorten(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusConflict, response.Shortener{
-			Result: os.Getenv("BASE_URL") + "/" + code,
+			Result: a.Cfg.BaseURL + "/" + code,
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, response.Shortener{
-		Result: os.Getenv("BASE_URL") + "/" + result,
+		Result: a.Cfg.BaseURL + "/" + result,
 	})
 }
 
-func shortenBatch(c *gin.Context) {
+func (a *App) shortenBatch(c *gin.Context) {
 	var body []request.Batch
 
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -184,7 +182,7 @@ func shortenBatch(c *gin.Context) {
 		return
 	}
 
-	result, err := db.CreateBatchURL(body)
+	result, err := db.CreateBatchURL(body, a.Cfg)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusBadRequest)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -198,7 +196,7 @@ func shortenBatch(c *gin.Context) {
 
 }
 
-func pingDB(c *gin.Context) {
+func (a *App) pingDB(c *gin.Context) {
 	if err := db.DB.PingDB(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),

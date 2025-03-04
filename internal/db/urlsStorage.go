@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func (fs *FileStorage) AppendBatchURL(items []request.Batch) (resItems []response.Batch, error error) {
+func (fs *FileStorage) AppendBatchURL(items []request.Batch, url string) (resItems []response.Batch, error error) {
 	var res []response.Batch
 	for _, req := range items {
 		if _, err := fs.AppendURL(req.OriginalURL, req.CorrelationID); err != nil {
@@ -20,7 +20,7 @@ func (fs *FileStorage) AppendBatchURL(items []request.Batch) (resItems []respons
 
 		res = append(res, response.Batch{
 			CorrelationID: req.CorrelationID,
-			ShortURL:      "http://" + os.Getenv("SERVER_ADDRESS") + "/" + req.CorrelationID,
+			ShortURL:      url + "/" + req.CorrelationID,
 		})
 	}
 

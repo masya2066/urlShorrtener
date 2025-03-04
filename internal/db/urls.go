@@ -1,23 +1,23 @@
 package db
 
 import (
-	"os"
+	"shortener/internal/models"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
 
 	"shortener/internal/pkg/generator"
 )
 
-func GetURL(id string) (string, error) {
-	if os.Getenv("DATABASE_DSN") != "" {
+func GetURL(id string, cfg models.Config) (string, error) {
+	if cfg.DatabaseDSN != "" {
 		res, err := DB.GetURLPostgres(id)
 		if err != nil {
 			return "", err
 		}
 
 		return res, nil
-	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
-		storagePath := os.Getenv("FILE_STORAGE_PATH")
+	} else if cfg.FileStoragePath != "" {
+		storagePath := cfg.FileStoragePath
 		fileStorage := NewFileStorage(storagePath)
 
 		result, err := fileStorage.GetURLByCode(id)
@@ -35,19 +35,19 @@ func GetURL(id string) (string, error) {
 	}
 }
 
-func CreateURL(url string) (string, error) {
+func CreateURL(url string, cfg models.Config) (string, error) {
 	code := generator.GenerateRandomCode(12)
 
-	if os.Getenv("DATABASE_DSN") != "" {
+	if cfg.DatabaseDSN != "" {
 		res, err := DB.CreateURLPostgres(code, url)
 		if err != nil {
 			return "", err
 		}
 
 		return res, nil
-	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
+	} else if cfg.FileStoragePath != "" {
 
-		storagePath := os.Getenv("FILE_STORAGE_PATH")
+		storagePath := cfg.FileStoragePath
 		fileStorage := NewFileStorage(storagePath)
 
 		_, err := fileStorage.AppendURL(url, code)
@@ -66,18 +66,18 @@ func CreateURL(url string) (string, error) {
 	}
 }
 
-func CreateBatchURL(items []request.Batch) ([]response.Batch, error) {
-	if os.Getenv("DATABASE_DSN") != "" {
+func CreateBatchURL(items []request.Batch, cfg models.Config) ([]response.Batch, error) {
+	if cfg.DatabaseDSN != "" {
 		res, err := DB.CreateBatchURLPostgres(items)
 		if err != nil {
 			return nil, err
 		}
 		return res, nil
-	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
-		storagePath := os.Getenv("FILE_STORAGE_PATH")
+	} else if cfg.FileStoragePath != "" {
+		storagePath := cfg.FileStoragePath
 		fileStorage := NewFileStorage(storagePath)
 
-		res, err := fileStorage.AppendBatchURL(items)
+		res, err := fileStorage.AppendBatchURL(items, "http://"+cfg.BaseURL)
 		if err != nil {
 			return nil, err
 		}
@@ -92,15 +92,15 @@ func CreateBatchURL(items []request.Batch) ([]response.Batch, error) {
 	}
 }
 
-func GetShortURLByLongURL(longURL string) (string, error) {
-	if os.Getenv("DATABASE_DSN") != "" {
+func GetShortURLByLongURL(longURL string, cfg models.Config) (string, error) {
+	if cfg.DatabaseDSN != "" {
 		res, err := DB.GetShortURLByLongURLPostgres(longURL)
 		if err != nil {
 			return "", err
 		}
 		return res, nil
-	} else if os.Getenv("FILE_STORAGE_PATH") != "" {
-		storagePath := os.Getenv("FILE_STORAGE_PATH")
+	} else if cfg.FileStoragePath != "" {
+		storagePath := cfg.FileStoragePath
 		fileStorage := NewFileStorage(storagePath)
 
 		res, err := fileStorage.GetShortURLByLongURL(longURL)

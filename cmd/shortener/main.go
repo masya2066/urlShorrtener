@@ -27,7 +27,7 @@ func main() {
 	if err := fileStorage.InitStorage(); err != nil {
 		slog.Default().Error("Error init storage", err)
 	}
-	if err := db.InitPostgres(); err != nil {
+	if err := db.InitPostgres(conf); err != nil {
 		slog.Default().Error("Error init postgres", err)
 	}
 
@@ -35,7 +35,7 @@ func main() {
 		slog.Default().Error("Error init sqlite", err)
 	}
 
-	if err := routes.Init(); err != nil {
+	if err := routes.New(conf); err != nil {
 		panic(err)
 	}
 }

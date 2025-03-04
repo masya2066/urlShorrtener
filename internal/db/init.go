@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"os"
+	"shortener/internal/models"
 	"sync"
 
 	"shortener/internal/models/request"
@@ -52,8 +52,8 @@ func (r *RealDB) PingDB() error {
 
 var DB Database
 
-func InitPostgres() error {
-	connString := os.Getenv("DATABASE_DSN")
+func InitPostgres(cfg models.Config) error {
+	connString := cfg.DatabaseDSN
 	fmt.Println(connString)
 	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 	"shortener/internal/models"
 )
 
-func LoadConfig(filename string) (conf models.Config, error error) {
+func LoadConfig(filename string) (models.Config, error) {
 	aFlag := flag.String("a", "", "Value for the -a flag")
 	bFlag := flag.String("b", "", "Value for the -b flag")
 	fFlag := flag.String("f", "", "Value for the -f flag")
@@ -17,54 +17,15 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 
 	flag.Parse()
 
-	if *aFlag != "" {
-		if err := os.Setenv("SERVER_ADDRESS", *aFlag); err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return models.Config{}, err
-		}
-		fmt.Println("Environment variable SERVER_ADDRESS set to:", *aFlag)
-	} else {
-		fmt.Println("No -a flag provided")
+	config := models.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "tmp/JADAF",
+		DatabaseDSN:     "default_dsn",
 	}
 
-	if *bFlag != "" {
-		if err := os.Setenv("BASE_URL", *bFlag); err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return models.Config{}, err
-		}
-		fmt.Println("Environment variable BASE_URL set to:", *bFlag)
-	} else {
-		fmt.Println("No -b flag provided")
-	}
-
-	if *fFlag != "" {
-		if err := os.Setenv("FILE_STORAGE_PATH", *fFlag); err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return models.Config{}, err
-		}
-		fmt.Println("Environment variable FILE_STORAGE_PATH set to:", *fFlag)
-	} else {
-		fmt.Println("No -f flag provided")
-	}
-	if *dFlag != "" {
-		if err := os.Setenv("DATABASE_DSN", *dFlag); err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return models.Config{}, err
-		}
-		fmt.Println("Environment variable DATABASE_DSN set to:", *dFlag)
-	} else {
-		fmt.Println("No -d flag provided")
-	}
-
-	var config models.Config
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		fmt.Println("Config file does not exist. Creating a new one...")
-
-		config = models.Config{
-			ServerAddress:   "localhost:8080",
-			BaseURL:         "http://localhost:8080",
-			FileStoragePath: "tmp/JADAF",
-		}
 
 		configBytes, err := json.MarshalIndent(config, "", "  ")
 		if err != nil {
@@ -76,14 +37,6 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 			return models.Config{}, err
 		}
 		fmt.Println("Default config created:", filename)
-
-		updatedConf, err := setConfigEnv(config)
-		if err != nil {
-			return models.Config{}, err
-		}
-
-		return updatedConf, nil
-
 	} else {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -100,44 +53,23 @@ func LoadConfig(filename string) (conf models.Config, error error) {
 		if err != nil {
 			return models.Config{}, err
 		}
-
-		updatedConf, err := setConfigEnv(config)
-		if err != nil {
-			return models.Config{}, err
-		}
-
-		return updatedConf, nil
-	}
-}
-
-func setConfigEnv(config models.Config) (conf models.Config, error error) {
-	if os.Getenv("BASE_URL") == "" {
-		if err := os.Setenv("BASE_URL", config.BaseURL); err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return models.Config{}, err
-		}
-		fmt.Println("Environment variable BASE_URL from config set to:", config.BaseURL)
 	}
 
-	if os.Getenv("SERVER_ADDRESS") == "" {
-		if err := os.Setenv("SERVER_ADDRESS", config.ServerAddress); err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return models.Config{}, err
-		}
-		fmt.Println("Environment variable SERVER_ADDRESS from config set to:", config.ServerAddress)
+	if *aFlag != "" {
+		config.ServerAddress = *aFlag
+	}
+	if *bFlag != "" {
+		config.BaseURL = *bFlag
+	}
+	if *fFlag != "" {
+		config.FileStoragePath = *fFlag
+	}
+	if *dFlag != "" {
+		config.DatabaseDSN = *dFlag
 	}
 
-	if os.Getenv("FILE_STORAGE_PATH") == "" {
-		if err := os.Setenv("FILE_STORAGE_PATH", config.FileStoragePath); err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return models.Config{}, err
-		}
-		fmt.Println("Environment variable FILE_STORAGE_PATH from config set to:", config.FileStoragePath)
-	}
-
-	if os.Getenv("FILE_STORAGE_PATH") != "" {
-		config.FileStoragePath = os.Getenv("FILE_STORAGE_PATH")
-	}
+	fmt.Printf("Loaded Config:\nServerAddress: %s\nBaseURL: %s\nFileStoragePath: %s\nDatabaseDSN: %s\n",
+		config.ServerAddress, config.BaseURL, config.FileStoragePath, config.DatabaseDSN)
 
 	return config, nil
 }
