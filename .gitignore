@@ -1,3 +1,9 @@
 .idea
 cmd/shortener/
 .idea/*
+internal/routes/urlShortener.db
+.env
+config.json
+cmd/shortener/config.json
+cmd/shortener/urlShortener.db
+cmd/shortener/tmp/*

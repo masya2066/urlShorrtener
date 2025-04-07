@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"log/slog"
 	"shortener/internal/config"
 	"shortener/internal/db"
 	"shortener/internal/routes"
@@ -19,20 +18,20 @@ func main() {
 	conf, errLoad := config.LoadConfig("config.json")
 
 	if errLoad != nil {
-		panic(errLoad)
+		log.Fatalf("Error loading config: %v", errLoad)
 	}
 
 	fileStorage := db.NewFileStorage(conf.FileStoragePath)
 
 	if err := fileStorage.InitStorage(); err != nil {
-		slog.Default().Error("Error init storage", err)
+		log.Println("Error init storage", err)
 	}
 	if err := db.InitPostgres(conf); err != nil {
-		slog.Default().Error("Error init postgres", err)
+		log.Println("Error init postgres", err)
 	}
 
 	if err := db.InitSQLite(); err != nil {
-		slog.Default().Error("Error init sqlite", err)
+		log.Println("Error init sqlite", err)
 	}
 
 	if err := routes.New(conf); err != nil {

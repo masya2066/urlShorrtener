@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
+	"log"
 	"shortener/internal/models"
 	"sync"
 
@@ -110,7 +110,7 @@ func InitSQLite() error {
 		return err
 	}
 
-	slog.Default().Info("Connected to SQLite and Migrated")
+	log.Println("Connected to SQLite and Migrated")
 	return db.Ping()
 }
 

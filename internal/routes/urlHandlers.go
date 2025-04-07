@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/mattn/go-sqlite3"
 	"io"
-	"log/slog"
+	"log"
 	"net/http"
 
 	"shortener/internal/db"
@@ -23,7 +23,7 @@ func (a *App) shortner(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := c.Writer.Write([]byte("Method must be a POST request"))
 		if err != nil {
-			slog.Default().Error("Error method", err)
+			log.Println("Error method", err)
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 		}
 		return
@@ -31,7 +31,7 @@ func (a *App) shortner(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		slog.Default().Error("Error read", err)
+		log.Println("Error read", err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -65,7 +65,7 @@ func (a *App) shortner(c *gin.Context) {
 		c.Header("Content-Type", "text/plain")
 		_, errWrite := c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + code))
 		if errWrite != nil {
-			slog.Default().Error("Error write", errWrite)
+			log.Println("Error write", errWrite)
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -76,7 +76,7 @@ func (a *App) shortner(c *gin.Context) {
 	c.Header("Content-Type", "text/plain")
 	_, errWrite := c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + result))
 	if errWrite != nil {
-		slog.Default().Error("Error write", errWrite)
+		log.Println("Error write", errWrite)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}

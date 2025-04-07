@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"shortener/internal/db"
+	"shortener/internal/models"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
 	"testing"
@@ -91,9 +92,18 @@ func TestPingDB(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db.DB = &MockDB{PingError: tt.mockError}
 
+			app := App{
+				Cfg: models.Config{
+					ServerAddress:   "localhost:8080",
+					BaseURL:         "http://localhost:8080",
+					FileStoragePath: "tmp/JADAF",
+					DatabaseDSN:     "postgres://myuser:mypassword@localhost:5432/url",
+				},
+			}
+
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
-			router.GET("/ping", pingDB)
+			router.GET("/ping", app.pingDB)
 
 			req, _ := http.NewRequest(http.MethodGet, "/ping", nil)
 			resp := httptest.NewRecorder()
@@ -108,7 +118,16 @@ func TestPingDB(t *testing.T) {
 func TestShortner(t *testing.T) {
 	r := gin.Default()
 
-	r.POST("/", shortner)
+	app := App{
+		Cfg: models.Config{
+			ServerAddress:   "localhost:8080",
+			BaseURL:         "http://localhost:8080",
+			FileStoragePath: "tmp/JADAF",
+			DatabaseDSN:     "postgres://myuser:mypassword@localhost:5432/url",
+		},
+	}
+
+	r.POST("/", app.shortner)
 
 	requestBody := []byte("https://playgate.store")
 	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(requestBody))
@@ -128,8 +147,15 @@ func TestShortner(t *testing.T) {
 
 func TestGetURL(t *testing.T) {
 	r := gin.Default()
-
-	r.GET("/:id", getURL)
+	app := App{
+		Cfg: models.Config{
+			ServerAddress:   "localhost:8080",
+			BaseURL:         "http://localhost:8080",
+			FileStoragePath: "tmp/JADAF",
+			DatabaseDSN:     "postgres://myuser:mypassword@localhost:5432/url",
+		},
+	}
+	r.GET("/:id", app.getURL)
 
 	req, err := http.NewRequest("GET", "/123", nil)
 	if err != nil {
@@ -148,8 +174,15 @@ func TestGetURL(t *testing.T) {
 
 func TestShorten(t *testing.T) {
 	r := gin.Default()
-
-	r.POST("/api/shorten", shorten)
+	app := App{
+		Cfg: models.Config{
+			ServerAddress:   "localhost:8080",
+			BaseURL:         "http://localhost:8080",
+			FileStoragePath: "tmp/JADAF",
+			DatabaseDSN:     "postgres://myuser:mypassword@localhost:5432/url",
+		},
+	}
+	r.POST("/api/shorten", app.shorten)
 
 	requestBody, err := json.Marshal(request.Shortener{
 		URL: "https://www.example.com",
