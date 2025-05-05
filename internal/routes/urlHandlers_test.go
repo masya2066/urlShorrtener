@@ -48,7 +48,7 @@ func (m *MockDB) CreateURLPostgres(code string, url string) (string, error) {
 	if m.CreatePostgresErr != nil {
 		return "", m.CreatePostgresErr
 	}
-	return code, nil // Return the provided code as-is for testing
+	return code, nil
 }
 
 func (m *MockDB) GetURLPostgres(id string) (string, error) {
