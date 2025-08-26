@@ -55,6 +55,12 @@ func LoadConfig(filename string) (models.Config, error) {
 		}
 	}
 
+	if v, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok && v != "" {
+		config.FileStoragePath = v
+	} else if *fFlag != "" {
+		config.FileStoragePath = *fFlag
+	}
+
 	if *aFlag != "" {
 		config.ServerAddress = *aFlag
 	}
