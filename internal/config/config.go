@@ -21,7 +21,7 @@ func LoadConfig(filename string) (models.Config, error) {
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
 		FileStoragePath: "tmp/JADAF",
-		DatabaseDSN:     "default_dsn",
+		DatabaseDSN:     "",
 	}
 
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
