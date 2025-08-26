@@ -1,18 +1,23 @@
 package db
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
-	"errors"
-	_ "github.com/mattn/go-sqlite3"
-	"os"
-	"path/filepath"
+	"fmt"
+	"log"
+	"shortener/internal/models"
 	"sync"
+
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
+
+	"github.com/jackc/pgx/v5"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Storage interface {
-	Init() error
 	AppendItem(newItem Item) error
+	AppendBatch(newItems []Item) error
 	DeleteItem(id string) error
 	GetItem(id string) (*Item, error)
 	GetItemByShortCode(code string) (*Item, error)
@@ -29,155 +34,87 @@ type FileStorage struct {
 	path string
 }
 
-func NewFileStorage(path string) *FileStorage {
-	return &FileStorage{
-		path: path,
-	}
+type Database interface {
+	PingDB() error
+	CreateURLPostgres(code string, url string) (string, error)
+	GetURLPostgres(id string) (string, error)
+	CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, err error)
+	GetShortURLByLongURLPostgres(longURL string) (string, error)
 }
 
-func Init() error {
-	db, err := sql.Open("sqlite3", "./urlShortener.db")
+type RealDB struct {
+	conn *pgx.Conn
+}
+
+func (r *RealDB) PingDB() error {
+	return r.conn.Ping(context.Background())
+}
+
+var DB Database
+
+func InitPostgres(cfg models.Config) error {
+	connString := cfg.DatabaseDSN
+	fmt.Println(connString)
+	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {
 		return err
 	}
-
-	defer db.Close()
-
-	if err := migrate(db); err != nil {
+	realDB := &RealDB{conn: conn}
+	if err := realDB.migratePostgres(); err != nil {
 		return err
 	}
 
-	return db.Ping()
+	DB = realDB
+	return nil
 }
 
-func (fs *FileStorage) InitStorage() error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
+func (r *RealDB) migratePostgres() error {
+	ctx := context.Background()
 
-	path := os.Getenv("FILE_STORAGE_PATH")
-	if path == "" {
-		path = "tmp/JADAF\n"
+	query := `
+	CREATE TABLE IF NOT EXISTS urlList (
+		url_id TEXT PRIMARY KEY,
+		longURL TEXT NOT NULL
+	);`
+	_, err := r.conn.Exec(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to create tables: %w", err)
 	}
 
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
+	deleteDuplicates := `
+	DELETE FROM urlList
+	WHERE url_id NOT IN (
+		SELECT MIN(url_id) FROM urlList GROUP BY longURL
+	);`
+	_, err = r.conn.Exec(ctx, deleteDuplicates)
+	if err != nil {
+		return fmt.Errorf("failed to delete duplicates: %w", err)
 	}
 
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		emptyData := []Item{}
-		file, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		encoder := json.NewEncoder(file)
-		return encoder.Encode(emptyData)
+	addUniqIndex := `CREATE UNIQUE INDEX IF NOT EXISTS unique_longURL ON urlList(longURL);`
+	_, err = r.conn.Exec(ctx, addUniqIndex)
+	if err != nil {
+		return fmt.Errorf("failed to create unique index: %w", err)
 	}
 
 	return nil
 }
 
-func (fs *FileStorage) AppendItem(newItem Item) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	items, err := getAllItems()
+func InitSQLite() error {
+	db, err := sql.Open("sqlite3", "./urlShortener.db")
 	if err != nil {
 		return err
 	}
-
-	items = append(items, newItem)
-
-	return writeItemsToFile(items)
-}
-
-func (fs *FileStorage) DeleteItem(id string) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	items, err := getAllItems()
-	if err != nil {
+	defer db.Close()
+	if err := migrateSQLite(db); err != nil {
 		return err
 	}
 
-	newItems := []Item{}
-	for _, item := range items {
-		if item.ID != id {
-			newItems = append(newItems, item)
-		}
-	}
-
-	return writeItemsToFile(newItems)
+	log.Println("Connected to SQLite and Migrated")
+	return db.Ping()
 }
 
-func GetItem(id string) (*Item, error) {
-	items, err := getAllItems()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, item := range items {
-		if item.ID == id {
-			return &item, nil
-		}
-	}
-	return nil, errors.New("item not found")
-}
-
-func GetItemByShortCode(code string) (*Item, error) {
-
-	items, err := getAllItems()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, item := range items {
-		if item.URL == code {
-			return &item, nil
-		}
-	}
-
-	return nil, errors.New("item not found")
-}
-
-func getAllItems() ([]Item, error) {
-	path := os.Getenv("FILE_STORAGE_PATH")
-	if path == "" {
-		path = "tmp/JADAF\n"
-	}
-
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var items []Item
-	err = json.Unmarshal(file, &items)
-	if err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-func writeItemsToFile(items []Item) error {
-	path := os.Getenv("FILE_STORAGE_PATH")
-	if path == "" {
-		path = "tmp/JADAF\n"
-	}
-
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	return encoder.Encode(items)
-}
-
-func migrate(db *sql.DB) error {
+func migrateSQLite(db *sql.DB) error {
 	createURLListTable := `CREATE TABLE IF NOT EXISTS urlList
 	(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,6 +123,24 @@ func migrate(db *sql.DB) error {
 	);`
 
 	_, err := db.Exec(createURLListTable)
+	if err != nil {
+		return err
+	}
+
+	deleteDuplicates := `
+	DELETE FROM urlList
+	WHERE id NOT IN (
+		SELECT MIN(id) FROM urlList GROUP BY longURL
+	);`
+
+	_, err = db.Exec(deleteDuplicates)
+	if err != nil {
+		return err
+	}
+
+	addUniqIndex := `CREATE UNIQUE INDEX IF NOT EXISTS unique_longURL ON urlList(longURL);`
+
+	_, err = db.Exec(addUniqIndex)
 	if err != nil {
 		return err
 	}

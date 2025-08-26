@@ -1,45 +1,118 @@
 package db
 
 import (
-	"fmt"
+	"shortener/internal/models"
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
 
-	"database/sql"
 	"shortener/internal/pkg/generator"
 )
 
-func GetURL(id string) (string, error) {
-	db, err := sql.Open("sqlite3", "./urlShortener.db")
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	var longURL string
-
-	err = db.QueryRow("SELECT longURL FROM urlList WHERE url_id = ?", id).Scan(&longURL)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("no URL found with id: %s", id)
+func GetURL(id string, cfg models.Config) (string, error) {
+	if cfg.DatabaseDSN != "" {
+		res, err := DB.GetURLPostgres(id)
+		if err != nil {
+			return "", err
 		}
-		return "", err
+
+		return res, nil
+	} else if cfg.FileStoragePath != "" {
+		storagePath := cfg.FileStoragePath
+		fileStorage := NewFileStorage(storagePath)
+
+		result, err := fileStorage.GetURLByCode(id)
+		if err != nil {
+			return "", err
+		}
+		return result, nil
+	} else {
+		res, err := getURLSQLite(id)
+		if err != nil {
+			return "", err
+		}
+
+		return res, nil
 	}
-	return longURL, nil
 }
 
-func CreateURL(url string) (string, error) {
-	db, err := sql.Open("sqlite3", "./urlShortener.db")
-	if err != nil {
-		return "", err
-	}
-
-	defer db.Close()
-
+func CreateURL(url string, cfg models.Config) (string, error) {
 	code := generator.GenerateRandomCode(12)
 
-	_, err = db.Exec("INSERT INTO urlList (url_id, longURL) VALUES (?, ?)", code, url)
-	if err != nil {
-		return "", err
-	}
+	if cfg.DatabaseDSN != "" {
+		res, err := DB.CreateURLPostgres(code, url)
+		if err != nil {
+			return "", err
+		}
 
-	return code, nil
+		return res, nil
+	} else if cfg.FileStoragePath != "" {
+
+		storagePath := cfg.FileStoragePath
+		fileStorage := NewFileStorage(storagePath)
+
+		_, err := fileStorage.AppendURL(url, code)
+		if err != nil {
+			return "", err
+		}
+
+		return code, nil
+	} else {
+		res, err := createURLSQLite(url, code)
+		if err != nil {
+			return "", err
+		}
+
+		return res, nil
+	}
+}
+
+func CreateBatchURL(items []request.Batch, cfg models.Config) ([]response.Batch, error) {
+	if cfg.DatabaseDSN != "" {
+		res, err := DB.CreateBatchURLPostgres(items)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	} else if cfg.FileStoragePath != "" {
+		storagePath := cfg.FileStoragePath
+		fileStorage := NewFileStorage(storagePath)
+
+		res, err := fileStorage.AppendBatchURL(items, "http://"+cfg.BaseURL)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	} else {
+		res, err := createBatchURLSQLite(items)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+
+	}
+}
+
+func GetShortURLByLongURL(longURL string, cfg models.Config) (string, error) {
+	if cfg.DatabaseDSN != "" {
+		res, err := DB.GetShortURLByLongURLPostgres(longURL)
+		if err != nil {
+			return "", err
+		}
+		return res, nil
+	} else if cfg.FileStoragePath != "" {
+		storagePath := cfg.FileStoragePath
+		fileStorage := NewFileStorage(storagePath)
+
+		res, err := fileStorage.GetShortURLByLongURL(longURL)
+		if err != nil {
+			return "", err
+		}
+		return res, nil
+	} else {
+		res, err := getShortURLByLongURLSQLite(longURL)
+		if err != nil {
+			return "", err
+		}
+		return res, nil
+	}
 }

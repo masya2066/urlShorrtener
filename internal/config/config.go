@@ -2,67 +2,80 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
+	"flag"
 	"io"
+	"log"
 	"os"
 	"shortener/internal/models"
 )
 
-func checkEnv(config models.Config) {
-	if os.Getenv("SERVER_ADDRESS") == "" {
-		os.Setenv("SERVER_ADDRESS", config.ServerAddress)
-	}
-	if os.Getenv("BASE_URL") == "" {
-		os.Setenv("BASE_URL", config.BaseURL)
-	}
-	if os.Getenv("FILE_STORAGE_PATH") == "" {
-		os.Setenv("FILE_STORAGE_PATH", config.FileStoragePath)
-	}
-}
+func LoadConfig(filename string) (models.Config, error) {
+	aFlag := flag.String("a", "", "Value for the -a flag")
+	bFlag := flag.String("b", "", "Value for the -b flag")
+	fFlag := flag.String("f", "", "Value for the -f flag")
+	dFlag := flag.String("d", "", "Value for the -d flag")
 
-func LoadConfig(filename string) error {
-	var config models.Config
+	flag.Parse()
+
+	config := models.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "tmp/JADAF",
+		DatabaseDSN:     "",
+	}
+
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Println("Config file does not exist. Creating a new one...")
-
-		config = models.Config{
-			ServerAddress:   "localhost:8080",
-			BaseURL:         "http://localhost:8080",
-			FileStoragePath: "tmp/JADAF",
-		}
+		log.Println("Config file does not exist. Creating a new one...")
 
 		configBytes, err := json.MarshalIndent(config, "", "  ")
 		if err != nil {
-			return err
+			return models.Config{}, err
 		}
 
 		err = os.WriteFile(filename, configBytes, 0644)
 		if err != nil {
-			return err
+			return models.Config{}, err
 		}
-		fmt.Println("Default config created:", filename)
+		log.Println("Default config created:", filename)
 	} else {
 		file, err := os.Open(filename)
 		if err != nil {
-			return err
+			return models.Config{}, err
 		}
 		defer file.Close()
 
 		bytes, err := io.ReadAll(file)
 		if err != nil {
-			return err
+			return models.Config{}, err
 		}
 
 		err = json.Unmarshal(bytes, &config)
 		if err != nil {
-			return err
+			return models.Config{}, err
 		}
-
-		checkEnv(config)
-		return nil
 	}
 
-	checkEnv(config)
+	if v, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok && v != "" {
+		config.FileStoragePath = v
+	} else if *fFlag != "" {
+		config.FileStoragePath = *fFlag
+	}
 
-	return nil
+	if *aFlag != "" {
+		config.ServerAddress = *aFlag
+	}
+	if *bFlag != "" {
+		config.BaseURL = *bFlag
+	}
+	if *fFlag != "" {
+		config.FileStoragePath = *fFlag
+	}
+	if *dFlag != "" {
+		config.DatabaseDSN = *dFlag
+	}
+
+	log.Printf("Loaded Config:\nServerAddress: %s\nBaseURL: %s\nFileStoragePath: %s\nDatabaseDSN: %s\n",
+		config.ServerAddress, config.BaseURL, config.FileStoragePath, config.DatabaseDSN)
+
+	return config, nil
 }
