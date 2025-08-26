@@ -18,7 +18,7 @@ func main() {
 	conf, errLoad := config.LoadConfig("config.json")
 
 	if errLoad != nil {
-		log.Fatalf("Error loading config: %v", errLoad)
+		log.Fatalf("error loading config: %v", errLoad)
 	}
 
 	fileStorage := db.NewFileStorage(conf.FileStoragePath)

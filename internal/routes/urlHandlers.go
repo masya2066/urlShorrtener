@@ -14,6 +14,13 @@ import (
 	"shortener/internal/models/response"
 )
 
+var (
+	createURLFunc      = db.CreateURL
+	getURLFunc         = db.GetURL
+	getShortByLongFunc = db.GetShortURLByLongURL
+	createBatchFunc    = db.CreateBatchURL
+)
+
 type CreateBody struct {
 	string
 }
@@ -39,7 +46,7 @@ func (a *App) shortner(c *gin.Context) {
 	defer c.Request.Body.Close()
 	strBody := string(body)
 
-	result, err := db.CreateURL(strBody, a.Cfg)
+	result, err := createURLFunc(strBody, a.Cfg)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
@@ -51,7 +58,7 @@ func (a *App) shortner(c *gin.Context) {
 			return
 		}
 
-		code, err := db.GetShortURLByLongURL(strBody, a.Cfg)
+		code, err := getShortByLongFunc(strBody, a.Cfg)
 		if err != nil {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 			_, err := c.Writer.Write([]byte(err.Error()))
@@ -94,7 +101,7 @@ func (a *App) getURL(c *gin.Context) {
 
 	id := c.Request.URL.Path[1:]
 
-	result, err := db.GetURL(id, a.Cfg)
+	result, err := getURLFunc(id, a.Cfg)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusTemporaryRedirect)
 		_, err := c.Writer.Write([]byte(err.Error()))
@@ -136,7 +143,7 @@ func (a *App) shorten(c *gin.Context) {
 		return
 	}
 
-	result, err := db.CreateURL(body.URL, a.Cfg)
+	result, err := createURLFunc(body.URL, a.Cfg)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
@@ -148,7 +155,7 @@ func (a *App) shorten(c *gin.Context) {
 			return
 		}
 
-		code, err := db.GetShortURLByLongURL(body.URL, a.Cfg)
+		code, err := getShortByLongFunc(body.URL, a.Cfg)
 		if err != nil {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
 			_, err := c.Writer.Write([]byte(err.Error()))
@@ -182,7 +189,7 @@ func (a *App) shortenBatch(c *gin.Context) {
 		return
 	}
 
-	result, err := db.CreateBatchURL(body, a.Cfg)
+	result, err := createBatchFunc(body, a.Cfg)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusBadRequest)
 		_, err := c.Writer.Write([]byte(err.Error()))

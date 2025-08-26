@@ -3,8 +3,8 @@ package config
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
+	"log"
 	"os"
 	"shortener/internal/models"
 )
@@ -25,7 +25,7 @@ func LoadConfig(filename string) (models.Config, error) {
 	}
 
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Println("Config file does not exist. Creating a new one...")
+		log.Println("Config file does not exist. Creating a new one...")
 
 		configBytes, err := json.MarshalIndent(config, "", "  ")
 		if err != nil {
@@ -36,7 +36,7 @@ func LoadConfig(filename string) (models.Config, error) {
 		if err != nil {
 			return models.Config{}, err
 		}
-		fmt.Println("Default config created:", filename)
+		log.Println("Default config created:", filename)
 	} else {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -68,7 +68,7 @@ func LoadConfig(filename string) (models.Config, error) {
 		config.DatabaseDSN = *dFlag
 	}
 
-	fmt.Printf("Loaded Config:\nServerAddress: %s\nBaseURL: %s\nFileStoragePath: %s\nDatabaseDSN: %s\n",
+	log.Printf("Loaded Config:\nServerAddress: %s\nBaseURL: %s\nFileStoragePath: %s\nDatabaseDSN: %s\n",
 		config.ServerAddress, config.BaseURL, config.FileStoragePath, config.DatabaseDSN)
 
 	return config, nil

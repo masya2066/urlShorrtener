@@ -7,3 +7,4 @@ config.json
 cmd/shortener/config.json
 cmd/shortener/urlShortener.db
 cmd/shortener/tmp/*
+main
