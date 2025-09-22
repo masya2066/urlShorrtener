@@ -45,11 +45,17 @@ func (m *MockDB) GetURL(id string) (string, error) {
 	return m.MockURL, nil // Return a mock URL
 }
 
-func (m *MockDB) CreateURLPostgres(code string, url string) (string, error) {
+func (m *MockDB) CreateURLPostgres(userID, code string, url string) (string, error) {
 	if m.CreatePostgresErr != nil {
 		return "", m.CreatePostgresErr
 	}
 	return code, nil
+}
+
+func (m *MockDB) GetAllUserURLsPostgres(userID, baseURL string) ([]db.UserURL, error) {
+	return []db.UserURL{
+		{ShortURL: baseURL + "/abc123", OriginalURL: "https://golang.org"},
+	}, nil
 }
 
 func (m *MockDB) GetURLPostgres(id string) (string, error) {
@@ -63,7 +69,7 @@ func (m *MockDB) GetShortURLByLongURLPostgres(longURL string) (string, error) {
 	return m.MockCode, nil
 }
 
-func (m *MockDB) CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, err error) {
+func (m *MockDB) CreateBatchURLPostgres(userID string, items []request.Batch) (resItems []response.Batch, err error) {
 
 	for _, item := range items {
 		resItems = append(resItems, response.Batch{
@@ -117,12 +123,10 @@ func TestPingDB(t *testing.T) {
 }
 
 func TestShortner_Success(t *testing.T) {
-	// save originals
 	origCreate := createURLFunc
 	t.Cleanup(func() { createURLFunc = origCreate })
 
-	// stub
-	createURLFunc = func(url string, cfg models.Config) (string, error) {
+	createURLFunc = func(userID string, url string, cfg models.Config) (string, error) {
 		return "abc123", nil
 	}
 
@@ -152,10 +156,10 @@ func TestShortner_DuplicateConflict(t *testing.T) {
 		getShortByLongFunc = origGetByLong
 	})
 
-	createURLFunc = func(url string, cfg models.Config) (string, error) {
+	createURLFunc = func(userID string, url string, cfg models.Config) (string, error) {
 		return "", &pgconn.PgError{Code: "23505"}
 	}
-	getShortByLongFunc = func(longURL string, cfg models.Config) (string, error) {
+	getShortByLongFunc = func(userID string, longURL string, cfg models.Config) (string, error) {
 		return "dup001", nil
 	}
 
@@ -181,7 +185,7 @@ func TestShortner_InternalErrorOnCreate(t *testing.T) {
 	origCreate := createURLFunc
 	t.Cleanup(func() { createURLFunc = origCreate })
 
-	createURLFunc = func(url string, cfg models.Config) (string, error) {
+	createURLFunc = func(userID string, url string, cfg models.Config) (string, error) {
 		return "", &pgconn.PgError{Code: "23514"}
 	}
 
@@ -210,10 +214,10 @@ func TestShortner_DuplicateButGetShortFails(t *testing.T) {
 		getShortByLongFunc = origGetByLong
 	})
 
-	createURLFunc = func(url string, cfg models.Config) (string, error) {
+	createURLFunc = func(userID string, url string, cfg models.Config) (string, error) {
 		return "", &pgconn.PgError{Code: "23505"}
 	}
-	getShortByLongFunc = func(longURL string, cfg models.Config) (string, error) {
+	getShortByLongFunc = func(userID string, longURL string, cfg models.Config) (string, error) {
 		return "", errors.New("cannot fetch short by long")
 	}
 
@@ -242,7 +246,6 @@ func TestShortner_WrongMethod(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	// ВАЖНО: Any, чтобы GET тоже попал в тот же хендлер
 	r.Any("/", app.shortner)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -335,7 +338,7 @@ func TestShorten_Success(t *testing.T) {
 	origCreate := createURLFunc
 	t.Cleanup(func() { createURLFunc = origCreate })
 
-	createURLFunc = func(u string, cfg models.Config) (string, error) {
+	createURLFunc = func(userID string, u string, cfg models.Config) (string, error) {
 		return "xyz987", nil
 	}
 
@@ -398,11 +401,10 @@ func TestShorten_DuplicateConflict(t *testing.T) {
 		getShortByLongFunc = origGetByLong
 	})
 
-	// emulate duplicate
-	createURLFunc = func(u string, cfg models.Config) (string, error) {
+	createURLFunc = func(userID string, u string, cfg models.Config) (string, error) {
 		return "", &pgconn.PgError{Code: "23505"}
 	}
-	getShortByLongFunc = func(longURL string, cfg models.Config) (string, error) {
+	getShortByLongFunc = func(userID string, longURL string, cfg models.Config) (string, error) {
 		return "dup002", nil
 	}
 
@@ -431,7 +433,7 @@ func TestShorten_InternalErrorOnCreate(t *testing.T) {
 	origCreate := createURLFunc
 	t.Cleanup(func() { createURLFunc = origCreate })
 
-	createURLFunc = func(u string, cfg models.Config) (string, error) {
+	createURLFunc = func(userID string, u string, cfg models.Config) (string, error) {
 		return "", &pgconn.PgError{Code: "23514"}
 	}
 
@@ -456,7 +458,7 @@ func TestShortenBatch_Success(t *testing.T) {
 	origBatch := createBatchFunc
 	t.Cleanup(func() { createBatchFunc = origBatch })
 
-	createBatchFunc = func(items []request.Batch, cfg models.Config) ([]response.Batch, error) {
+	createBatchFunc = func(userID string, items []request.Batch, cfg models.Config) ([]response.Batch, error) {
 		out := make([]response.Batch, 0, len(items))
 		for _, it := range items {
 			out = append(out, response.Batch{
@@ -528,7 +530,7 @@ func TestShortenBatch_DBError(t *testing.T) {
 	origBatch := createBatchFunc
 	t.Cleanup(func() { createBatchFunc = origBatch })
 
-	createBatchFunc = func(items []request.Batch, cfg models.Config) ([]response.Batch, error) {
+	createBatchFunc = func(userID string, items []request.Batch, cfg models.Config) ([]response.Batch, error) {
 		return nil, errors.New("batch failed")
 	}
 

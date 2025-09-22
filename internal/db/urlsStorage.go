@@ -9,25 +9,24 @@ import (
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
 	"strconv"
+	"strings"
 )
 
-func (fs *FileStorage) AppendBatchURL(items []request.Batch, url string) (resItems []response.Batch, error error) {
+func (fs *FileStorage) AppendBatchURL(userID string, items []request.Batch, baseURL string) (resItems []response.Batch, err error) {
 	var res []response.Batch
 	for _, req := range items {
-		if _, err := fs.AppendURL(req.OriginalURL, req.CorrelationID); err != nil {
+		if _, err := fs.AppendURL(userID, req.OriginalURL, req.CorrelationID); err != nil {
 			return nil, err
 		}
-
 		res = append(res, response.Batch{
 			CorrelationID: req.CorrelationID,
-			ShortURL:      url + "/" + req.CorrelationID,
+			ShortURL:      strings.TrimRight(baseURL, "/") + "/" + req.CorrelationID,
 		})
 	}
-
 	return res, nil
 }
 
-func (fs *FileStorage) AppendURL(url string, codeGen string) (code string, errCreate error) {
+func (fs *FileStorage) AppendURL(userID, url, codeGen string) (code string, errCreate error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -38,58 +37,70 @@ func (fs *FileStorage) AppendURL(url string, codeGen string) (code string, errCr
 
 	maxID := 0
 	for _, item := range items {
-		idInt, _ := strconv.Atoi(item.ID)
-		if idInt > maxID {
+		if idInt, _ := strconv.Atoi(item.ID); idInt > maxID {
 			maxID = idInt
 		}
 	}
 	nextID := strconv.Itoa(maxID + 1)
 
-	newItem := Item{ID: nextID, URL: codeGen, LongURL: url}
+	newItem := Item{
+		ID:      nextID,
+		URL:     codeGen,
+		LongURL: url,
+		UserID:  userID,
+	}
 	items = append(items, newItem)
 
-	err = fs.writeItemsToFile(items)
-	if err != nil {
+	if err := fs.writeItemsToFile(items); err != nil {
 		return "", err
 	}
 	return codeGen, nil
 }
 
 func (fs *FileStorage) GetURLByCode(code string) (string, error) {
-	var longURL string
-
-	items, err := fs.GetItemByShortCodeStorage(code)
+	item, err := fs.GetItemByShortCodeStorage(code)
 	if err != nil {
-		fmt.Println(2)
-		return "Error in GetItemByShortCodeStorage", err
+		return "", err
 	}
-
-	longURL = items.LongURL
-	return longURL, nil
+	return item.LongURL, nil
 }
 
-func (fs *FileStorage) GetShortURLByLongURL(longURL string) (string, error) {
+func (fs *FileStorage) GetShortURLByLongURL(userID, longURL string) (string, error) {
 	items, err := fs.getAllItemsStorage()
 	if err != nil {
 		return "", err
 	}
-
-	var code string
 	for _, item := range items {
-		if item.LongURL == longURL {
-			code = item.URL
-			break
+		if item.UserID == userID && item.LongURL == longURL {
+			return item.URL, nil
 		}
 	}
-
-	return code, errors.New("item not found")
+	return "", errors.New("item not found")
 }
 
-func NewFileStorage(path string) *FileStorage {
-	return &FileStorage{
-		path: path,
+func (fs *FileStorage) GetAllUserURLs(userID, base string) ([]UserURL, error) {
+	items, err := fs.getAllItemsStorage()
+	if err != nil {
+		return nil, err
 	}
+	if base == "" {
+		base = "http://" + os.Getenv("SERVER_ADDRESS")
+	}
+	base = strings.TrimRight(base, "/")
+
+	out := make([]UserURL, 0, 16)
+	for _, it := range items {
+		if it.UserID == userID {
+			out = append(out, UserURL{
+				ShortURL:    base + "/" + it.URL,
+				OriginalURL: it.LongURL,
+			})
+		}
+	}
+	return out, nil
 }
+
+func NewFileStorage(path string) *FileStorage { return &FileStorage{path: path} }
 
 func (fs *FileStorage) InitStorage() error {
 	fs.mu.Lock()
@@ -99,54 +110,41 @@ func (fs *FileStorage) InitStorage() error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
-
 	if _, err := os.Stat(fs.path); errors.Is(err, os.ErrNotExist) {
-		emptyData := []Item{}
 		file, err := os.Create(fs.path)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
-
-		encoder := json.NewEncoder(file)
-
-		fmt.Println("File created:", fs.path)
-		return encoder.Encode(emptyData)
+		return json.NewEncoder(file).Encode([]Item{})
 	}
-
 	return nil
 }
 
 func (fs *FileStorage) AppendItemStorage(newItem Item) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-
 	items, err := fs.getAllItemsStorage()
 	if err != nil {
 		return err
 	}
-
 	items = append(items, newItem)
-
 	return fs.writeItemsToFile(items)
 }
 
 func (fs *FileStorage) DeleteItemStorage(id string) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-
 	items, err := fs.getAllItemsStorage()
 	if err != nil {
 		return err
 	}
-
-	newItems := []Item{}
+	newItems := make([]Item, 0, len(items))
 	for _, item := range items {
 		if item.ID != id {
 			newItems = append(newItems, item)
 		}
 	}
-
 	return fs.writeItemsToFile(newItems)
 }
 
@@ -155,7 +153,6 @@ func (fs *FileStorage) GetItemStorage(id string) (*Item, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	for _, item := range items {
 		if item.ID == id {
 			return &item, nil
@@ -165,46 +162,35 @@ func (fs *FileStorage) GetItemStorage(id string) (*Item, error) {
 }
 
 func (fs *FileStorage) GetItemByShortCodeStorage(code string) (*Item, error) {
-
 	items, err := fs.getAllItemsStorage()
 	if err != nil {
 		return nil, fmt.Errorf("error in getAllItemsStorage: %w", err)
 	}
-
 	for _, item := range items {
-		fmt.Println(item.URL, code)
 		if item.URL == code {
 			return &item, nil
 		}
 	}
-
 	return nil, errors.New("item not found")
 }
 
 func (fs *FileStorage) getAllItemsStorage() ([]Item, error) {
-
 	file, err := os.ReadFile(fs.path)
 	if err != nil {
-
 		return nil, err
 	}
-
 	var items []Item
-	err = json.Unmarshal(file, &items)
-	if err != nil {
+	if err := json.Unmarshal(file, &items); err != nil {
 		return nil, err
 	}
 	return items, nil
 }
 
 func (fs *FileStorage) writeItemsToFile(items []Item) error {
-
 	file, err := os.Create(fs.path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	return encoder.Encode(items)
+	return json.NewEncoder(file).Encode(items)
 }

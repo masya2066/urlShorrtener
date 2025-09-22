@@ -21,6 +21,8 @@ func LoadConfig(filename string) (models.Config, error) {
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
 		FileStoragePath: "tmp/JADAF",
+		CookieName:      "userID",
+		AuthSecret:      "secret",
 		DatabaseDSN:     "",
 	}
 
@@ -74,8 +76,12 @@ func LoadConfig(filename string) (models.Config, error) {
 		config.DatabaseDSN = *dFlag
 	}
 
-	log.Printf("Loaded Config:\nServerAddress: %s\nBaseURL: %s\nFileStoragePath: %s\nDatabaseDSN: %s\n",
-		config.ServerAddress, config.BaseURL, config.FileStoragePath, config.DatabaseDSN)
+	if os.Getenv("AUTH_SECRET") != "" {
+		config.AuthSecret = os.Getenv("AUTH_SECRET")
+	}
+
+	log.Printf("Loaded Config:\nServerAddress: %s\nBaseURL: %s\nFileStoragePath: %s\nDatabaseDSN: %s\n AuthSecret: %s\n",
+		config.ServerAddress, config.BaseURL, config.FileStoragePath, config.DatabaseDSN, config.AuthSecret)
 
 	return config, nil
 }

@@ -27,6 +27,7 @@ type Item struct {
 	ID      string `json:"id"`
 	URL     string `json:"url"`
 	LongURL string `json:"long_url"`
+	UserID  string `json:"userID"`
 }
 
 type FileStorage struct {
@@ -36,10 +37,11 @@ type FileStorage struct {
 
 type Database interface {
 	PingDB() error
-	CreateURLPostgres(code string, url string) (string, error)
+	CreateURLPostgres(userID string, code string, url string) (string, error) // ⬅ добавили userID
 	GetURLPostgres(id string) (string, error)
-	CreateBatchURLPostgres(items []request.Batch) (resItems []response.Batch, err error)
-	GetShortURLByLongURLPostgres(longURL string) (string, error)
+	CreateBatchURLPostgres(userID string, items []request.Batch) ([]response.Batch, error)
+	GetShortURLByLongURLPostgres(longURL string) (string, error) // ⬅ добавили userID
+	GetAllUserURLsPostgres(userID string, baseURL string) ([]UserURL, error)
 }
 
 type RealDB struct {

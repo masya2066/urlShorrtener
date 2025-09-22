@@ -16,8 +16,7 @@ func getURLSQLite(id string) (string, error) {
 	defer db.Close()
 
 	var longURL string
-
-	err = db.QueryRow("SELECT longURL FROM urlList WHERE url_id = ?", id).Scan(&longURL)
+	err = db.QueryRow(`SELECT longURL FROM urlList WHERE url_id = ?`, id).Scan(&longURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", fmt.Errorf("no URL found with id: %s", id)
@@ -27,54 +26,108 @@ func getURLSQLite(id string) (string, error) {
 	return longURL, nil
 }
 
-func getShortURLByLongURLSQLite(longURL string) (string, error) {
+func getShortURLByLongURLSQLite(userID, longURL string) (string, error) {
 	db, err := sql.Open("sqlite3", "./urlShortener.db")
 	if err != nil {
 		return "", err
 	}
 	defer db.Close()
 
-	var shortURL string
-	err = db.QueryRow("SELECT url_id FROM urlList WHERE longURL = ?", longURL).Scan(&shortURL)
+	var shortID string
+	err = db.QueryRow(`SELECT url_id FROM urlList WHERE longURL = ? AND userID = ? LIMIT 1`, longURL, userID).Scan(&shortID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", fmt.Errorf("no URL found URL: %s", longURL)
 		}
+		return "", err
 	}
-
-	return shortURL, nil
+	return shortID, nil
 }
 
-func createURLSQLite(url string, code string) (string, error) {
+func createURLSQLite(userID, url, code string) (string, error) {
 	db, err := sql.Open("sqlite3", "./urlShortener.db")
 	if err != nil {
 		return "", err
 	}
-
 	defer db.Close()
 
-	_, err = db.Exec("INSERT INTO urlList (url_id, longURL) VALUES (?, ?)", code, url)
+	_, err = db.Exec(`INSERT INTO urlList (url_id, longURL, userID) VALUES (?, ?, ?)`, code, url, userID)
 	if err != nil {
 		return "", err
 	}
-
 	return code, nil
 }
 
-func createBatchURLSQLite(items []request.Batch) (resItems []response.Batch, error error) {
+func createBatchURLSQLite(userID string, items []request.Batch) (resItems []response.Batch, err error) {
+	db, err := sql.Open("sqlite3", "./urlShortener.db")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	stmt, err := tx.Prepare(`INSERT INTO urlList (url_id, longURL, userID) VALUES (?, ?, ?)`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
 	var res []response.Batch
+	base := os.Getenv("SERVER_ADDRESS") // например "localhost:8080"
 
 	for _, req := range items {
-		_, err := createURLSQLite(req.OriginalURL, req.CorrelationID)
-		if err != nil {
+		if _, err := stmt.Exec(req.CorrelationID, req.OriginalURL, userID); err != nil {
 			return nil, err
 		}
-
 		res = append(res, response.Batch{
 			CorrelationID: req.CorrelationID,
-			ShortURL:      "http://" + os.Getenv("SERVER_ADDRESS") + "/" + req.CorrelationID,
+			ShortURL:      "http://" + base + "/" + req.CorrelationID,
 		})
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	return res, nil
+}
+
+type UserURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+func getAllUserURLsSQLite(userID string, base string) ([]UserURL, error) {
+	db, err := sql.Open("sqlite3", "./urlShortener.db")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`SELECT url_id, longURL FROM urlList WHERE userID = ? ORDER BY url_id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if base == "" {
+		base = "http://" + os.Getenv("SERVER_ADDRESS")
+	}
+
+	var out []UserURL
+	for rows.Next() {
+		var id, longURL string
+		if err := rows.Scan(&id, &longURL); err != nil {
+			return nil, err
+		}
+		out = append(out, UserURL{
+			ShortURL:    base + "/" + id,
+			OriginalURL: longURL,
+		})
+	}
+	return out, rows.Err()
 }

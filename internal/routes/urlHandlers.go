@@ -6,8 +6,9 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/mattn/go-sqlite3"
 	"io"
-	"log"
 	"net/http"
+	"shortener/internal/pkg/auth"
+	"strings"
 
 	"shortener/internal/db"
 	"shortener/internal/models/request"
@@ -25,68 +26,70 @@ type CreateBody struct {
 	string
 }
 
+func (a *App) readUserID(c *gin.Context) (string, bool) {
+	return auth.UserIDFromRequest(c.Request, a.Cfg.CookieName, []byte(a.Cfg.AuthSecret))
+}
+
+func (a *App) ensureUserID(c *gin.Context) (string, error) {
+	if uid, ok := a.readUserID(c); ok {
+		return uid, nil
+	}
+	return auth.IssueUserCookie(c.Writer, a.Cfg.CookieName, []byte(a.Cfg.AuthSecret))
+}
+
 func (a *App) shortner(c *gin.Context) {
 	if c.Request.Method != http.MethodPost {
 		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
-		_, err := c.Writer.Write([]byte("Method must be a POST request"))
-		if err != nil {
-			log.Println("Error method", err)
-			c.Writer.WriteHeader(http.StatusInternalServerError)
-		}
+		_, _ = c.Writer.Write([]byte("Method must be a POST request"))
 		return
 	}
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		log.Println("Error read", err)
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	defer c.Request.Body.Close()
-	strBody := string(body)
 
-	result, err := createURLFunc(strBody, a.Cfg)
+	orig := strings.TrimSpace(string(body))
+	if orig == "" {
+		c.Writer.WriteHeader(http.StatusBadRequest)
+		_, _ = c.Writer.Write([]byte("empty body"))
+		return
+	}
+
+	userID, err := a.ensureUserID(c)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		_, _ = c.Writer.Write([]byte("cannot issue cookie"))
+		return
+	}
+
+	code, err := createURLFunc(userID, orig, a.Cfg)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
-			_, err := c.Writer.Write([]byte(err.Error()))
-			if err != nil {
-				c.Writer.WriteHeader(http.StatusInternalServerError)
-			}
+			_, _ = c.Writer.Write([]byte(err.Error()))
 			return
 		}
 
-		code, err := getShortByLongFunc(strBody, a.Cfg)
-		if err != nil {
+		existing, getErr := getShortByLongFunc(userID, orig, a.Cfg)
+		if getErr != nil {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
-			_, err := c.Writer.Write([]byte(err.Error()))
-			if err != nil {
-				c.Writer.WriteHeader(http.StatusInternalServerError)
-			}
+			_, _ = c.Writer.Write([]byte(getErr.Error()))
 			return
 		}
 
+		c.Header("Content-Type", "text/plain; charset=utf-8")
 		c.Writer.WriteHeader(http.StatusConflict)
-		c.Header("Content-Type", "text/plain")
-		_, errWrite := c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + code))
-		if errWrite != nil {
-			log.Println("Error write", errWrite)
-			c.Writer.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		_, _ = c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + existing))
 		return
 	}
 
+	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Writer.WriteHeader(http.StatusCreated)
-	c.Header("Content-Type", "text/plain")
-	_, errWrite := c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + result))
-	if errWrite != nil {
-		log.Println("Error write", errWrite)
-		c.Writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	_, _ = c.Writer.Write([]byte(a.Cfg.BaseURL + "/" + code))
 }
 
 func (a *App) getURL(c *gin.Context) {
@@ -126,42 +129,36 @@ func (a *App) getURL(c *gin.Context) {
 
 func (a *App) shorten(c *gin.Context) {
 	var body request.Shortener
-
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.Writer.WriteHeader(http.StatusBadRequest)
-		_, err := c.Writer.Write([]byte(err.Error()))
-		if err != nil {
-			c.Writer.WriteHeader(http.StatusInternalServerError)
-		}
+		_, _ = c.Writer.Write([]byte(err.Error()))
 		return
 	}
-
 	if body.URL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "URL is required",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "URL is required"})
 		return
 	}
 
-	result, err := createURLFunc(body.URL, a.Cfg)
+	userID, err := a.ensureUserID(c)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		_, _ = c.Writer.Write([]byte("cannot issue cookie"))
+		return
+	}
+
+	result, err := createURLFunc(userID, body.URL, a.Cfg)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code != "23505" {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
-			_, err := c.Writer.Write([]byte(err.Error()))
-			if err != nil {
-				c.Writer.WriteHeader(http.StatusInternalServerError)
-			}
+			_, _ = c.Writer.Write([]byte(err.Error()))
 			return
 		}
 
-		code, err := getShortByLongFunc(body.URL, a.Cfg)
+		code, err := getShortByLongFunc(userID, body.URL, a.Cfg)
 		if err != nil {
 			c.Writer.WriteHeader(http.StatusInternalServerError)
-			_, err := c.Writer.Write([]byte(err.Error()))
-			if err != nil {
-				c.Writer.WriteHeader(http.StatusInternalServerError)
-			}
+			_, _ = c.Writer.Write([]byte(err.Error()))
 			return
 		}
 
@@ -178,29 +175,51 @@ func (a *App) shorten(c *gin.Context) {
 
 func (a *App) shortenBatch(c *gin.Context) {
 	var body []request.Batch
-
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-
 	if len(body) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "batch cannot be empty"})
 		return
 	}
 
-	result, err := createBatchFunc(body, a.Cfg)
+	userID, err := a.ensureUserID(c)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		_, _ = c.Writer.Write([]byte("cannot issue cookie"))
+		return
+	}
+
+	result, err := createBatchFunc(userID, body, a.Cfg)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusBadRequest)
-		_, err := c.Writer.Write([]byte(err.Error()))
-		if err != nil {
-			c.Writer.WriteHeader(http.StatusBadRequest)
-		}
+		_, _ = c.Writer.Write([]byte(err.Error()))
 		return
 	}
 
 	c.JSON(http.StatusCreated, result)
+}
 
+func (a *App) getUserURLs(c *gin.Context) {
+	userID, ok := a.readUserID(c)
+	if !ok {
+		c.Writer.WriteHeader(http.StatusUnauthorized) // 401 по ТЗ
+		_, _ = c.Writer.Write([]byte("unauthorized"))
+		return
+	}
+
+	list, err := db.GetAllUserURLsFunc(userID, a.Cfg) // обёртка к твоим GetAllUserURLs(...)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		_, _ = c.Writer.Write([]byte(err.Error()))
+		return
+	}
+	if len(list) == 0 {
+		c.Status(http.StatusNoContent) // 204 по ТЗ
+		return
+	}
+	c.JSON(http.StatusOK, list)
 }
 
 func (a *App) pingDB(c *gin.Context) {

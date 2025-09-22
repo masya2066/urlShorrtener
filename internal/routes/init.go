@@ -22,6 +22,7 @@ func New(config models.Config) error {
 	r.GET("/:id", app.getURL)
 	r.POST("/", app.shortner)
 	r.GET("/ping", app.pingDB)
+	r.GET("/api/user/urls", app.getUserURLs)
 	r.POST("/api/shorten/batch", app.shortenBatch)
 	api := r.Group("/api")
 	{
