@@ -144,7 +144,7 @@ func TestShortner_Success(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-	assert.Equal(t, "text/plain", w.Header().Get("Content-Type"))
+	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 	assert.Equal(t, "http://localhost:8080/abc123", w.Body.String())
 }
 
@@ -177,7 +177,7 @@ func TestShortner_DuplicateConflict(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusConflict, w.Code)
-	assert.Equal(t, "text/plain", w.Header().Get("Content-Type"))
+	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 	assert.Equal(t, "http://localhost:8080/dup001", w.Body.String())
 }
 
