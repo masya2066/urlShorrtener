@@ -202,21 +202,21 @@ func (a *App) shortenBatch(c *gin.Context) {
 }
 
 func (a *App) getUserURLs(c *gin.Context) {
-	userID, ok := a.readUserID(c)
-	if !ok {
-		c.Writer.WriteHeader(http.StatusUnauthorized) // 401 по ТЗ
-		_, _ = c.Writer.Write([]byte("unauthorized"))
+	userID, err := a.ensureUserID(c)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		_, _ = c.Writer.Write([]byte("cannot issue cookie"))
 		return
 	}
 
-	list, err := db.GetAllUserURLsFunc(userID, a.Cfg) // обёртка к твоим GetAllUserURLs(...)
+	list, err := db.GetAllUserURLsFunc(userID, a.Cfg)
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusInternalServerError)
 		_, _ = c.Writer.Write([]byte(err.Error()))
 		return
 	}
 	if len(list) == 0 {
-		c.Status(http.StatusNoContent) // 204 по ТЗ
+		c.Status(http.StatusNoContent) // 204
 		return
 	}
 	c.JSON(http.StatusOK, list)

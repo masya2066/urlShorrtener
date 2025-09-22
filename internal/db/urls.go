@@ -118,7 +118,7 @@ func GetShortURLByLongURL(userID, longURL string, cfg models.Config) (string, er
 }
 
 func GetAllUserURLsFunc(userID string, cfg models.Config) ([]UserURL, error) {
-	base := "http://" + cfg.BaseURL
+	base := cfg.BaseURL
 
 	if cfg.DatabaseDSN != "" {
 		return DB.GetAllUserURLsPostgres(userID, base)
