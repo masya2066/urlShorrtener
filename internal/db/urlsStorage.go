@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"shortener/internal/models/request"
 	"shortener/internal/models/response"
+	"shortener/internal/pkg/generator"
 	"strconv"
 	"strings"
 )
@@ -26,13 +27,23 @@ func (fs *FileStorage) AppendBatchURL(userID string, items []request.Batch, base
 	return res, nil
 }
 
-func (fs *FileStorage) AppendURL(userID, url, codeGen string) (code string, errCreate error) {
+func (fs *FileStorage) AppendURL(userID, url, codeGen string) (string, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	items, err := fs.getAllItemsStorage()
 	if err != nil {
 		return "", err
+	}
+
+	for _, item := range items {
+		if item.UserID == userID && item.LongURL == url {
+			return item.URL, nil
+		}
+	}
+
+	if codeGen == "" {
+		codeGen = generator.GenerateRandomCode(12) // используй свой генератор
 	}
 
 	maxID := 0

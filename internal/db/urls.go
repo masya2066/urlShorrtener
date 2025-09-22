@@ -50,12 +50,12 @@ func CreateURL(userID, url string, cfg models.Config) (string, error) {
 		storagePath := cfg.FileStoragePath
 		fileStorage := NewFileStorage(storagePath)
 
-		_, err := fileStorage.AppendURL(userID, url, code)
+		isCode, err := fileStorage.AppendURL(userID, url, code)
 		if err != nil {
 			return "", err
 		}
 
-		return code, nil
+		return isCode, nil
 	} else {
 		res, err := createURLSQLite(userID, url, code)
 		if err != nil {
