@@ -13,7 +13,7 @@ import (
 
 func (r *RealDB) CreateURLPostgres(userID, code, url string) (string, error) {
 	_, err := r.conn.Exec(context.Background(),
-		`INSERT INTO "urlList" ("url_id","longURL","userID") VALUES ($1,$2,$3)`,
+		`INSERT INTO "urllist" ("url_id","longURL","userID") VALUES ($1,$2,$3)`,
 		code, url, userID)
 	if err != nil {
 		return "", err
@@ -24,7 +24,7 @@ func (r *RealDB) CreateURLPostgres(userID, code, url string) (string, error) {
 func (r *RealDB) GetURLPostgres(id string) (string, error) {
 	var longURL string
 	err := r.conn.QueryRow(context.Background(),
-		`SELECT "longURL" FROM "urlList" WHERE "url_id" = $1`, id).Scan(&longURL)
+		`SELECT "longURL" FROM "urllist" WHERE "url_id" = $1`, id).Scan(&longURL)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return "", fmt.Errorf("no URL found with id: %s", id)
@@ -45,7 +45,7 @@ func (r *RealDB) CreateBatchURLPostgres(userID string, items []request.Batch) ([
 	for _, req := range items {
 		var exists bool
 		if err := tx.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM "urlList" WHERE "url_id" = $1)`,
+			`SELECT EXISTS(SELECT 1 FROM "urllist" WHERE "url_id" = $1)`,
 			req.CorrelationID).Scan(&exists); err != nil {
 			return nil, fmt.Errorf("error checking id %s: %w", req.CorrelationID, err)
 		}
@@ -57,7 +57,7 @@ func (r *RealDB) CreateBatchURLPostgres(userID string, items []request.Batch) ([
 	res := make([]response.Batch, 0, len(items))
 	for _, req := range items {
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO "urlList" ("url_id","longURL","userID") VALUES ($1,$2,$3)`,
+			`INSERT INTO "urllist" ("url_id","longURL","userID") VALUES ($1,$2,$3)`,
 			req.CorrelationID, req.OriginalURL, userID); err != nil {
 			return nil, fmt.Errorf("failed to insert item %s: %w", req.CorrelationID, err)
 		}
@@ -76,7 +76,7 @@ func (r *RealDB) CreateBatchURLPostgres(userID string, items []request.Batch) ([
 func (r *RealDB) GetShortURLByLongURLPostgres(longURL string) (string, error) {
 	var shortID string
 	err := r.conn.QueryRow(context.Background(),
-		`SELECT "url_id" FROM "urlList" WHERE "longURL" = $1 LIMIT 1`, longURL).Scan(&shortID)
+		`SELECT "url_id" FROM "urllist" WHERE "longURL" = $1 LIMIT 1`, longURL).Scan(&shortID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return "", fmt.Errorf("no URL found URL: %s", longURL)
@@ -88,7 +88,7 @@ func (r *RealDB) GetShortURLByLongURLPostgres(longURL string) (string, error) {
 
 func (r *RealDB) GetAllUserURLsPostgres(userID string, baseURL string) ([]UserURL, error) {
 	rows, err := r.conn.Query(context.Background(),
-		`SELECT "url_id","longURL" FROM "urlList" WHERE "userID" = $1 ORDER BY "url_id" ASC`,
+		`SELECT "url_id","longURL" FROM "urllist" WHERE "userID" = $1 ORDER BY "url_id" ASC`,
 		userID)
 	if err != nil {
 		return nil, err

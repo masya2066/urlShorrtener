@@ -16,7 +16,7 @@ func getURLSQLite(id string) (string, error) {
 	defer db.Close()
 
 	var longURL string
-	err = db.QueryRow(`SELECT longURL FROM urlList WHERE url_id = ?`, id).Scan(&longURL)
+	err = db.QueryRow(`SELECT longURL FROM urllist WHERE url_id = ?`, id).Scan(&longURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", fmt.Errorf("no URL found with id: %s", id)
@@ -34,7 +34,7 @@ func getShortURLByLongURLSQLite(userID, longURL string) (string, error) {
 	defer db.Close()
 
 	var shortID string
-	err = db.QueryRow(`SELECT url_id FROM urlList WHERE longURL = ? AND userID = ? LIMIT 1`, longURL, userID).Scan(&shortID)
+	err = db.QueryRow(`SELECT url_id FROM urllist WHERE longURL = ? AND userID = ? LIMIT 1`, longURL, userID).Scan(&shortID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", fmt.Errorf("no URL found URL: %s", longURL)
@@ -51,7 +51,7 @@ func createURLSQLite(userID, url, code string) (string, error) {
 	}
 	defer db.Close()
 
-	_, err = db.Exec(`INSERT INTO urlList (url_id, longURL, userID) VALUES (?, ?, ?)`, code, url, userID)
+	_, err = db.Exec(`INSERT INTO urllist (url_id, longURL, userID) VALUES (?, ?, ?)`, code, url, userID)
 	if err != nil {
 		return "", err
 	}
@@ -71,7 +71,7 @@ func createBatchURLSQLite(userID string, items []request.Batch) (resItems []resp
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	stmt, err := tx.Prepare(`INSERT INTO urlList (url_id, longURL, userID) VALUES (?, ?, ?)`)
+	stmt, err := tx.Prepare(`INSERT INTO urllist (url_id, longURL, userID) VALUES (?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func getAllUserURLsSQLite(userID string, base string) ([]UserURL, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`SELECT url_id, longURL FROM urlList WHERE userID = ? ORDER BY url_id`, userID)
+	rows, err := db.Query(`SELECT url_id, longURL FROM urllist WHERE userID = ? ORDER BY url_id`, userID)
 	if err != nil {
 		return nil, err
 	}
