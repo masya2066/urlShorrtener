@@ -23,7 +23,7 @@ func LoadConfig(filename string) (models.Config, error) {
 		FileStoragePath: "tmp/JADAF",
 		CookieName:      "userID",
 		AuthSecret:      "secret",
-		DatabaseDSN:     "",
+		DatabaseDSN:     os.Getenv("DATABASE_DSN"),
 	}
 
 	if _, err := os.Stat(filename); os.IsNotExist(err) {

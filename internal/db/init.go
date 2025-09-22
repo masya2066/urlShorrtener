@@ -73,30 +73,48 @@ func InitPostgres(cfg models.Config) error {
 func (r *RealDB) migratePostgres() error {
 	ctx := context.Background()
 
-	query := `
-	CREATE TABLE IF NOT EXISTS urlList (
-		url_id TEXT PRIMARY KEY,
-		longURL TEXT NOT NULL
+	createTable := `
+	CREATE TABLE IF NOT EXISTS "urlList" (
+		"url_id"  TEXT PRIMARY KEY,
+		"longURL" TEXT NOT NULL,
+		"userID"  TEXT
 	);`
-	_, err := r.conn.Exec(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to create tables: %w", err)
+	if _, err := r.conn.Exec(ctx, createTable); err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
 	}
 
-	deleteDuplicates := `
-	DELETE FROM urlList
-	WHERE url_id NOT IN (
-		SELECT MIN(url_id) FROM urlList GROUP BY longURL
-	);`
-	_, err = r.conn.Exec(ctx, deleteDuplicates)
-	if err != nil {
-		return fmt.Errorf("failed to delete duplicates: %w", err)
+	if _, err := r.conn.Exec(ctx, `ALTER TABLE "urlList" ADD COLUMN IF NOT EXISTS "userID" TEXT;`); err != nil {
+		return fmt.Errorf("failed to add userID column: %w", err)
 	}
 
-	addUniqIndex := `CREATE UNIQUE INDEX IF NOT EXISTS unique_longURL ON urlList(longURL);`
-	_, err = r.conn.Exec(ctx, addUniqIndex)
-	if err != nil {
-		return fmt.Errorf("failed to create unique index: %w", err)
+	if _, err := r.conn.Exec(ctx, `UPDATE "urlList" SET "userID" = 'legacy' WHERE "userID" IS NULL OR "userID" = ''`); err != nil {
+		return fmt.Errorf("failed to backfill userID: %w", err)
+	}
+
+	deleteDup := `
+	DELETE FROM "urlList" t
+	USING "urlList" d
+	WHERE t.ctid < d.ctid
+	  AND t."userID" = d."userID"
+	  AND t."longURL" = d."longURL";`
+	if _, err := r.conn.Exec(ctx, deleteDup); err != nil {
+		return fmt.Errorf("failed to delete duplicates by (userID,longURL): %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `ALTER TABLE "urlList" ALTER COLUMN "userID" SET NOT NULL;`); err != nil {
+		return fmt.Errorf("failed to set userID NOT NULL: %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `CREATE INDEX IF NOT EXISTS urlList_userID_idx ON "urlList" ("userID");`); err != nil {
+		return fmt.Errorf("failed to create userID index: %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS url_unique_per_user ON "urlList" ("userID","longURL");`); err != nil {
+		return fmt.Errorf("failed to create unique (userID,longURL) index: %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `DROP INDEX IF EXISTS "unique_longURL";`); err != nil {
+		return fmt.Errorf("failed to drop old unique_longURL index: %w", err)
 	}
 
 	return nil
