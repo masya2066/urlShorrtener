@@ -1,18 +1,23 @@
 package db
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
-	"errors"
-	_ "github.com/mattn/go-sqlite3"
-	"os"
-	"path/filepath"
+	"fmt"
+	"log"
+	"shortener/internal/models"
 	"sync"
+
+	"shortener/internal/models/request"
+	"shortener/internal/models/response"
+
+	"github.com/jackc/pgx/v5"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Storage interface {
-	Init() error
 	AppendItem(newItem Item) error
+	AppendBatch(newItems []Item) error
 	DeleteItem(id string) error
 	GetItem(id string) (*Item, error)
 	GetItemByShortCode(code string) (*Item, error)
@@ -22,6 +27,7 @@ type Item struct {
 	ID      string `json:"id"`
 	URL     string `json:"url"`
 	LongURL string `json:"long_url"`
+	UserID  string `json:"userID"`
 }
 
 type FileStorage struct {
@@ -29,156 +35,107 @@ type FileStorage struct {
 	path string
 }
 
-func NewFileStorage(path string) *FileStorage {
-	return &FileStorage{
-		path: path,
-	}
+type Database interface {
+	PingDB() error
+	CreateURLPostgres(userID string, code string, url string) (string, error) // ⬅ добавили userID
+	GetURLPostgres(id string) (string, error)
+	CreateBatchURLPostgres(userID string, items []request.Batch) ([]response.Batch, error)
+	GetShortURLByLongURLPostgres(longURL string) (string, error) // ⬅ добавили userID
+	GetAllUserURLsPostgres(userID string, baseURL string) ([]UserURL, error)
 }
 
-func Init() error {
-	db, err := sql.Open("sqlite3", "./urlShortener.db")
+type RealDB struct {
+	conn *pgx.Conn
+}
+
+func (r *RealDB) PingDB() error {
+	return r.conn.Ping(context.Background())
+}
+
+var DB Database
+
+func InitPostgres(cfg models.Config) error {
+	connString := cfg.DatabaseDSN
+	fmt.Println(connString)
+	conn, err := pgx.Connect(context.Background(), connString)
 	if err != nil {
 		return err
 	}
-
-	defer db.Close()
-
-	if err := migrate(db); err != nil {
+	realDB := &RealDB{conn: conn}
+	if err := realDB.migratePostgres(); err != nil {
 		return err
 	}
 
-	return db.Ping()
+	DB = realDB
+	return nil
 }
 
-func (fs *FileStorage) InitStorage() error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
+func (r *RealDB) migratePostgres() error {
+	ctx := context.Background()
 
-	path := os.Getenv("FILE_STORAGE_PATH")
-	if path == "" {
-		path = "tmp/JADAF\n"
+	createTable := `
+	CREATE TABLE IF NOT EXISTS "urllist" (
+		"url_id"  TEXT PRIMARY KEY,
+		"longURL" TEXT NOT NULL,
+		"userID"  TEXT
+	);`
+	if _, err := r.conn.Exec(ctx, createTable); err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
 	}
 
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
+	if _, err := r.conn.Exec(ctx, `ALTER TABLE "urllist" ADD COLUMN IF NOT EXISTS "userID" TEXT;`); err != nil {
+		return fmt.Errorf("failed to add userID column: %w", err)
 	}
 
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		emptyData := []Item{}
-		file, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
+	if _, err := r.conn.Exec(ctx, `UPDATE "urllist" SET "userID" = 'legacy' WHERE "userID" IS NULL OR "userID" = ''`); err != nil {
+		return fmt.Errorf("failed to backfill userID: %w", err)
+	}
 
-		encoder := json.NewEncoder(file)
-		return encoder.Encode(emptyData)
+	deleteDup := `
+	DELETE FROM "urllist" t
+	USING "urllist" d
+	WHERE t.ctid < d.ctid
+	  AND t."userID" = d."userID"
+	  AND t."longURL" = d."longURL";`
+	if _, err := r.conn.Exec(ctx, deleteDup); err != nil {
+		return fmt.Errorf("failed to delete duplicates by (userID,longURL): %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `ALTER TABLE "urllist" ALTER COLUMN "userID" SET NOT NULL;`); err != nil {
+		return fmt.Errorf("failed to set userID NOT NULL: %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `CREATE INDEX IF NOT EXISTS urlList_userID_idx ON "urllist" ("userID");`); err != nil {
+		return fmt.Errorf("failed to create userID index: %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS url_unique_per_user ON "urllist" ("userID","longURL");`); err != nil {
+		return fmt.Errorf("failed to create unique (userID,longURL) index: %w", err)
+	}
+
+	if _, err := r.conn.Exec(ctx, `DROP INDEX IF EXISTS "unique_longURL";`); err != nil {
+		return fmt.Errorf("failed to drop old unique_longURL index: %w", err)
 	}
 
 	return nil
 }
 
-func (fs *FileStorage) AppendItem(newItem Item) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	items, err := getAllItems()
+func InitSQLite() error {
+	db, err := sql.Open("sqlite3", "./urlShortener.db")
 	if err != nil {
 		return err
 	}
-
-	items = append(items, newItem)
-
-	return writeItemsToFile(items)
-}
-
-func (fs *FileStorage) DeleteItem(id string) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	items, err := getAllItems()
-	if err != nil {
+	defer db.Close()
+	if err := migrateSQLite(db); err != nil {
 		return err
 	}
 
-	newItems := []Item{}
-	for _, item := range items {
-		if item.ID != id {
-			newItems = append(newItems, item)
-		}
-	}
-
-	return writeItemsToFile(newItems)
+	log.Println("Connected to SQLite and Migrated")
+	return db.Ping()
 }
 
-func GetItem(id string) (*Item, error) {
-	items, err := getAllItems()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, item := range items {
-		if item.ID == id {
-			return &item, nil
-		}
-	}
-	return nil, errors.New("item not found")
-}
-
-func GetItemByShortCode(code string) (*Item, error) {
-
-	items, err := getAllItems()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, item := range items {
-		if item.URL == code {
-			return &item, nil
-		}
-	}
-
-	return nil, errors.New("item not found")
-}
-
-func getAllItems() ([]Item, error) {
-	path := os.Getenv("FILE_STORAGE_PATH")
-	if path == "" {
-		path = "tmp/JADAF\n"
-	}
-
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var items []Item
-	err = json.Unmarshal(file, &items)
-	if err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-func writeItemsToFile(items []Item) error {
-	path := os.Getenv("FILE_STORAGE_PATH")
-	if path == "" {
-		path = "tmp/JADAF\n"
-	}
-
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	return encoder.Encode(items)
-}
-
-func migrate(db *sql.DB) error {
-	createURLListTable := `CREATE TABLE IF NOT EXISTS urlList
+func migrateSQLite(db *sql.DB) error {
+	createURLListTable := `CREATE TABLE IF NOT EXISTS urllist
 	(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		url_id TEXT NOT NULL,
@@ -186,6 +143,24 @@ func migrate(db *sql.DB) error {
 	);`
 
 	_, err := db.Exec(createURLListTable)
+	if err != nil {
+		return err
+	}
+
+	deleteDuplicates := `
+	DELETE FROM urllist
+	WHERE id NOT IN (
+		SELECT MIN(id) FROM urllist GROUP BY longURL
+	);`
+
+	_, err = db.Exec(deleteDuplicates)
+	if err != nil {
+		return err
+	}
+
+	addUniqIndex := `CREATE UNIQUE INDEX IF NOT EXISTS unique_longURL ON urllist(longURL);`
+
+	_, err = db.Exec(addUniqIndex)
 	if err != nil {
 		return err
 	}

@@ -1,16 +1,12 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"log"
-	"os"
-
-	"github.com/joho/godotenv"
-
 	"shortener/internal/config"
 	"shortener/internal/db"
 	"shortener/internal/routes"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -19,62 +15,26 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 
-	errLoad := config.LoadConfig("config.json")
+	conf, errLoad := config.LoadConfig("config.json")
 
 	if errLoad != nil {
-		panic(errLoad)
+		log.Fatalf("error loading config: %v", errLoad)
 	}
 
-	aFlag := flag.String("a", "", "Value for the -a flag")
-	bFlag := flag.String("b", "", "Value for the -b flag")
-	fFlag := flag.String("f", "", "Value for the -f flag")
-
-	flag.Parse()
-
-	if *aFlag != "" {
-		err := os.Setenv("SERVER_ADDRESS", *aFlag)
-		if err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return
-		}
-		fmt.Println("Environment variable SERVER_ADDRESS set to:", *aFlag)
-	} else {
-		fmt.Println("No -a flag provided")
-	}
-
-	if *bFlag != "" {
-		err := os.Setenv("BASE_URL", *bFlag)
-		if err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return
-		}
-		fmt.Println("Environment variable BASE_URL set to:", *bFlag)
-	} else {
-		fmt.Println("No -b flag provided")
-	}
-
-	if *fFlag != "" {
-		err := os.Setenv("FILE_STORAGE_PATH", *fFlag)
-		if err != nil {
-			fmt.Println("Error setting environment variable:", err)
-			return
-		}
-		fmt.Println("Environment variable FILE_STORAGE_PATH set to:", *fFlag)
-	} else {
-		fmt.Println("No -f flag provided")
-	}
-
-	storagePath := os.Getenv("FILE_STORAGE_PATH")
-	fileStorage := db.NewFileStorage(storagePath)
+	fileStorage := db.NewFileStorage(conf.FileStoragePath)
 
 	if err := fileStorage.InitStorage(); err != nil {
-		panic(err)
+		log.Println("Error init storage", err)
 	}
-	if err := db.Init(); err != nil {
-		panic(err)
+	if err := db.InitPostgres(conf); err != nil {
+		log.Println("Error init postgres", err)
 	}
 
-	if err := routes.Init(); err != nil {
+	if err := db.InitSQLite(); err != nil {
+		log.Println("Error init sqlite", err)
+	}
+
+	if err := routes.New(conf); err != nil {
 		panic(err)
 	}
 }
